@@ -13,6 +13,8 @@ class TranslateResponse(BaseModel):
 class TTSRequest(BaseModel):
     text: str = Field(..., description="Text warning message to synthesize to speech")
     voice_name: Optional[str] = Field("Kore", description="Voice profile for Gemini TTS (e.g. Kore, Fen, Puck, Charon, Aoede)")
+    language: Optional[str] = Field("hi-IN", description="Target language code (e.g. hi-IN, en-IN, ta-IN)")
+    voice_style: Optional[str] = Field("urgent", description="Voice style: urgent, clear, calm, emphatic")
 
 class TTSResponse(BaseModel):
     audio_base64: str = Field(..., description="Base64 encoded audio bytes (PCM/WAV) containing warning")

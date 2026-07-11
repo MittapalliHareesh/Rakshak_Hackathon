@@ -16,6 +16,7 @@ class TranslationService:
     async def translate_text(self, text: str, target_lang: str = "English") -> tuple[str, str]:
         """
         Translates text to target language (usually English).
+        Supports multi-language detection and translation for Indian languages.
         Returns: (translated_text, detected_language)
         """
         if not text.strip():
@@ -25,16 +26,15 @@ class TranslationService:
             logger.warning("Gemini Client not initialized, returning original text")
             return text, "unknown"
 
-        # Note: gemini-3.5-live-translate-preview only works over the Live API WebSocket,
-        # not via REST generateContent. Use gemini-3.5-flash for REST-based translation.
-        models_to_try = [settings.model_reasoning]
+        # Try the dedicated translation model first, fallback to reasoning model
+        models_to_try = [settings.model_translate, settings.model_reasoning]
         last_error = None
 
         for model_name in models_to_try:
             try:
                 prompt = f"""
                 Translate the following text to {target_lang}. If it is already in {target_lang}, leave it as is.
-                Detect the source language. 
+                Detect the source language accurately from these major Indian languages: Hindi, Telugu, Tamil, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi, English.
 
                 Respond strictly in the following JSON format:
                 {{
@@ -55,7 +55,9 @@ class TranslationService:
                 )
                 import json
                 result = json.loads(response.text)
-                return result.get("translated_text", text), result.get("detected_lang", "unknown")
+                detected = result.get("detected_lang", "unknown")
+                logger.info(f"Detected language: {detected} for text: {text[:50]}...")
+                return result.get("translated_text", text), detected
             except Exception as e:
                 logger.warning(f"Failed to translate using model {model_name}: {e}")
                 last_error = e

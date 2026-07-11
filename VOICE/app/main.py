@@ -472,12 +472,27 @@ DASHBOARD_HTML = """
                     <textarea id="tts-input" rows="3">सावधान! यह कॉल एक डिजिटल अरेस्ट घोटाला है। कृपया तुरंत फोन काट दें।</textarea>
                 </div>
                 <div class="input-group">
-                    <label for="tts-voice">Voice Profile</label>
-                    <select id="tts-voice">
-                        <option value="Kore">Kore (Standard Male)</option>
-                        <option value="Fen">Fen (Soft Female)</option>
-                        <option value="Puck">Puck (Fast/Alert)</option>
-                        <option value="Aoede">Aoede (Clear Vocal)</option>
+                    <label for="tts-language">Target Language</label>
+                    <select id="tts-language">
+                        <option value="hi-IN">Hindi (हिंदी)</option>
+                        <option value="en-IN">English (India)</option>
+                        <option value="ta-IN">Tamil (தமிழ்)</option>
+                        <option value="te-IN">Telugu (తెలుగు)</option>
+                        <option value="bn-IN">Bengali (বাংলা)</option>
+                        <option value="mr-IN">Marathi (मराठी)</option>
+                        <option value="gu-IN">Gujarati (ગુજરાતી)</option>
+                        <option value="kn-IN">Kannada (ಕನ್ನಡ)</option>
+                        <option value="ml-IN">Malayalam (മലയാളം)</option>
+                        <option value="pa-IN">Punjabi (ਪੰਜਾਬੀ)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="tts-voice-style">Voice Style</label>
+                    <select id="tts-voice-style">
+                        <option value="urgent">Urgent Alert (Fast, Lower Pitch)</option>
+                        <option value="clear">Clear & Professional (Normal Rate)</option>
+                        <option value="calm">Calm Warning (Slower, Higher Pitch)</option>
+                        <option value="emphatic">Emphatic (Louder, Dynamic)</option>
                     </select>
                 </div>
                 <button class="btn" onclick="runTTS()">Generate Warning Voice</button>
@@ -521,6 +536,16 @@ DASHBOARD_HTML = """
     <script>
         let ws = null;
         let callId = null;
+        
+        // Load voices for TTS
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = function() {
+                console.log('Voices loaded:', speechSynthesis.getVoices().length);
+            };
+            // Initial voice load
+            speechSynthesis.getVoices();
+        }
+        
         const scriptedSentences = [
             { text: "Hello, can you hear me? I am officer Vijay Kumar from Delhi Cyber Cell division.", role: "caller" },
             { text: "Hanji, boliye. Kya baat hai?", role: "victim" },
@@ -646,6 +671,24 @@ DASHBOARD_HTML = """
             if (base64Audio) {
                 const snd = new Audio("data:audio/wav;base64," + base64Audio);
                 snd.play();
+            } else {
+                // Fallback to enhanced browser TTS if no audio from backend
+                if ('speechSynthesis' in window) {
+                    const warningText = "सावधान! यह कॉल एक डिजिटल अरेस्ट घोटाला है। कृपया तुरंत फोन काट दें।";
+                    const voices = speechSynthesis.getVoices();
+                    const hindiVoice = voices.find(voice => voice.lang.startsWith('hi')) || voices[0];
+                    
+                    const utterance = new SpeechSynthesisUtterance(warningText);
+                    utterance.lang = 'hi-IN';
+                    if (hindiVoice) {
+                        utterance.voice = hindiVoice;
+                    }
+                    utterance.rate = 1.1; // Urgent pace
+                    utterance.pitch = 0.8; // Lower pitch for urgency
+                    utterance.volume = 1.0;
+                    
+                    speechSynthesis.speak(utterance);
+                }
             }
             
             // Show lock overlay
@@ -706,7 +749,8 @@ DASHBOARD_HTML = """
 
         async function runTTS() {
             const text = document.getElementById("tts-input").value;
-            const voice = document.getElementById("tts-voice").value;
+            const language = document.getElementById("tts-language").value;
+            const voiceStyle = document.getElementById("tts-voice-style").value;
             const resText = document.getElementById("tts-result-text");
             const audioEl = document.getElementById("tts-audio-element");
             
@@ -717,16 +761,128 @@ DASHBOARD_HTML = """
                 const response = await fetch("/tts/warning", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: text, voice_name: voice })
+                    body: JSON.stringify({ text: text, voice_name: voiceStyle })
                 });
                 const data = await response.json();
                 
-                resText.innerText = "Synthesis completed. Playing audio.";
-                audioEl.src = "data:audio/wav;base64," + data.audio_base64;
-                audioEl.style.display = "block";
-                audioEl.play();
+                // Check if we got audio from backend
+                if (data.audio_base64 && data.audio_base64.length > 0) {
+                    resText.innerText = "Synthesis completed. Playing audio.";
+                    audioEl.src = "data:audio/wav;base64," + data.audio_base64;
+                    audioEl.style.display = "block";
+                    audioEl.play();
+                } else {
+                    // Enhanced browser TTS with improved language support
+                    resText.innerText = "Using enhanced browser speech synthesis...";
+                    if ('speechSynthesis' in window) {
+                        // Get available voices
+                        const voices = speechSynthesis.getVoices();
+                        
+                        // Language fallback hierarchy
+                        const langFallbacks = {
+                            'te-IN': ['te', 'hi-IN', 'hi', 'en-IN', 'en'], // Telugu -> Hindi -> English
+                            'kn-IN': ['kn', 'hi-IN', 'hi', 'en-IN', 'en'], // Kannada -> Hindi -> English  
+                            'ta-IN': ['ta', 'hi-IN', 'hi', 'en-IN', 'en'], // Tamil -> Hindi -> English
+                            'ml-IN': ['ml', 'hi-IN', 'hi', 'en-IN', 'en'], // Malayalam -> Hindi -> English
+                            'gu-IN': ['gu', 'hi-IN', 'hi', 'en-IN', 'en'], // Gujarati -> Hindi -> English
+                            'mr-IN': ['mr', 'hi-IN', 'hi', 'en-IN', 'en'], // Marathi -> Hindi -> English
+                            'bn-IN': ['bn', 'hi-IN', 'hi', 'en-IN', 'en'], // Bengali -> Hindi -> English
+                            'pa-IN': ['pa', 'hi-IN', 'hi', 'en-IN', 'en'], // Punjabi -> Hindi -> English
+                            'hi-IN': ['hi', 'en-IN', 'en'], // Hindi -> English
+                            'en-IN': ['en', 'en-US']  // English India -> English US
+                        };
+                        
+                        const fallbacks = langFallbacks[language] || ['en'];
+                        let selectedVoice = null;
+                        let usedLang = language;
+                        
+                        // Try each fallback language
+                        for (const lang of fallbacks) {
+                            const langVoices = voices.filter(voice => voice.lang.startsWith(lang));
+                            if (langVoices.length > 0) {
+                                selectedVoice = langVoices[0];
+                                usedLang = lang;
+                                break;
+                            }
+                        }
+                        
+                        // If still no voice found, use first available
+                        if (!selectedVoice && voices.length > 0) {
+                            selectedVoice = voices[0];
+                            usedLang = selectedVoice.lang.split('-')[0];
+                        }
+                        
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        
+                        // Set language (use fallback if needed)
+                        utterance.lang = usedLang;
+                        
+                        // Set voice if available
+                        if (selectedVoice) {
+                            utterance.voice = selectedVoice;
+                        }
+                        
+                        // Configure voice style parameters
+                        const styleConfigs = {
+                            'urgent': { rate: 1.1, pitch: 0.8, volume: 1.0 }, // Fast, lower pitch for urgency
+                            'clear': { rate: 0.95, pitch: 1.0, volume: 1.0 }, // Normal, clear
+                            'calm': { rate: 0.85, pitch: 1.1, volume: 0.9 }, // Slower, higher pitch
+                            'emphatic': { rate: 1.0, pitch: 0.9, volume: 1.0 } // Normal rate, emphatic
+                        };
+                        
+                        const config = styleConfigs[voiceStyle] || styleConfigs['clear'];
+                        utterance.rate = config.rate;
+                        utterance.pitch = config.pitch;
+                        utterance.volume = config.volume;
+                        
+                        // Add event handlers
+                        utterance.onstart = function() {
+                            const actualLang = usedLang !== language ? ` (fallback to ${usedLang})` : '';
+                            resText.innerText = `Playing ${language} audio${actualLang} using ${voiceStyle} voice style.`;
+                        };
+                        
+                        utterance.onend = function() {
+                            resText.innerText = "Audio playback completed.";
+                        };
+                        
+                        utterance.onerror = function(event) {
+                            resText.innerText = `TTS Error: ${event.error}. Using English fallback.`;
+                            // Try English as last resort
+                            const englishUtterance = new SpeechSynthesisUtterance(text);
+                            englishUtterance.lang = 'en-US';
+                            const englishVoice = voices.find(v => v.lang.startsWith('en'));
+                            if (englishVoice) englishUtterance.voice = englishVoice;
+                            speechSynthesis.speak(englishUtterance);
+                        };
+                        
+                        speechSynthesis.speak(utterance);
+                    } else {
+                        resText.innerText = "TTS not available in this browser.";
+                    }
+                }
             } catch (e) {
-                resText.innerText = "Error: " + e;
+                // Fallback to browser's Web Speech API on error
+                resText.innerText = "Backend error, using enhanced browser speech synthesis.";
+                if ('speechSynthesis' in window) {
+                    const voices = speechSynthesis.getVoices();
+                    const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+                    
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'en-US';
+                    
+                    if (englishVoice) {
+                        utterance.voice = englishVoice;
+                    }
+                    
+                    utterance.rate = 0.95;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 1.0;
+                    
+                    speechSynthesis.speak(utterance);
+                    resText.innerText = "Playing audio using English fallback.";
+                } else {
+                    resText.innerText = "TTS not available: " + e;
+                }
             }
         }
 

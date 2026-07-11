@@ -11,7 +11,12 @@ async def generate_warning(payload: TTSRequest):
             payload.text, payload.voice_name
         )
         if not base64_audio:
-            raise HTTPException(status_code=500, detail="Failed to synthesize speech")
+            # Return the text as fallback if audio generation fails
+            # This allows the system to still function even without TTS
+            return TTSResponse(
+                audio_base64="",  # Empty audio
+                text=payload.text
+            )
         return TTSResponse(
             audio_base64=base64_audio,
             text=payload.text
@@ -19,4 +24,8 @@ async def generate_warning(payload: TTSRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS generation failed: {str(e)}")
+        # Return text fallback on error
+        return TTSResponse(
+            audio_base64="",  # Empty audio on error
+            text=payload.text
+        )

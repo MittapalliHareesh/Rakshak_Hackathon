@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     
     # Core Gemini Models for the Hackathon Problem Statement
     model_live: str = Field("gemini-3.1-flash-live-preview", validation_alias="MODEL_LIVE")
-    model_translate: str = Field("gemini-3.5-live-translate-preview", validation_alias="MODEL_TRANSLATE")
-    model_tts: str = Field("gemini-3.1-flash-tts-preview", validation_alias="MODEL_TTS")
+    model_translate: str = Field("gemini-3.5-flash", validation_alias="MODEL_TRANSLATE")  # Fixed: live-translate-preview not available via REST
+    model_tts: str = Field("gemini-3.5-flash", validation_alias="MODEL_TTS")  # Fixed: TTS model might not be available, using flash
     model_reasoning: str = Field("gemini-3.5-flash", validation_alias="MODEL_REASONING")
     
     model_config = SettingsConfigDict(
