@@ -1,0 +1,110 @@
+# Scam-Related Messages in Multiple Languages
+# For RAKSHAK Digital Arrest Extortion Detection System
+
+## Hindi (हिंदी)
+
+### Message 1
+यह दिल्ली क्राइम ब्रांच से बोल रहा हूं। आपका आधार कार्ड गलत तरीके से इस्तेमाल हुआ है। तुरंत पुलिस स्टेशन आएं नहीं तो गिरफ्तार हो जाएंगे।
+
+### Message 2
+आपकी सिम कार्ड ब्लॉक कर दी गई है क्योंकि आपने आतंकवादी गतिविधियों में शामिल हैं। अभी 50,000 रुपये जमा करें वरना केस दर्ज होगा।
+
+### Message 3
+कस्टम डिपार्टमेंट ने आपका पार्सल रोक लिया है। इसमें नशीली दवाईं मिली हैं। 25,000 रुपये फाइन भरें या जेल होगी।
+
+### Message 4
+आपके बैंक अकाउंट से लॉन्ड्रिंग हुई है। ईडी नोटिस भेजा गया है। अभी 1 लाख रुपये ट्रांसफर करें।
+
+### Message 5
+आपकी बेटी के पास अवैध ड्रग्स मिले हैं। उसे जेल से बचाने के लिए 2 लाख रुपये दें। पुलिस आ रही है।
+
+### Message 6
+आपके पैन कार्ड का इस्तेमाल फ्रॉड में हुआ है। आयकर विभाग जांच करेगा। 10,000 रुपये दें या कोर्ट जाएं।
+
+---
+
+## English
+
+### Message 1
+This is Delhi Crime Branch speaking. Your Aadhaar card has been used illegally. Come to the police station immediately or you will be arrested.
+
+### Message 2
+Your SIM card has been blocked because you are involved in terrorist activities. Deposit 50,000 rupees now or a case will be filed against you.
+
+### Message 3
+Customs department has seized your parcel. Narcotics were found inside. Pay 25,000 rupees fine or you will go to jail.
+
+### Message 4
+Money laundering happened from your bank account. ED notice has been issued. Transfer 1 lakh rupees immediately to avoid arrest.
+
+### Message 5
+Illegal drugs were found with your daughter. Pay 2 lakh rupees to save her from jail. Police are on their way to arrest her.
+
+### Message 6
+Your PAN card was used in fraud. Income tax department will investigate. Pay 10,000 rupees or face court proceedings.
+
+---
+
+## Hinglish (Hindi + English Mix)
+
+### Message 1
+Ye Delhi Crime Branch se bol raha hu. Aapka Aadhaar card galat tarah se use hua hai. Turant police station aao nahi toh arrest ho jaoge.
+
+### Message 2
+Aapki SIM card block ho gayi hai kyunki aap terrorist activities mein involved hain. Abhi 50,000 rupees deposit karo nahi toh case register hoga.
+
+### Message 3
+Customs department ne aapka parcel rok liya hai. Isme narcotics mila hai. 25,000 rupees fine bharo nahi toh jail mein jayenge.
+
+### Message 4
+Aapke bank account se money laundering hui hai. ED notice bhej diya gaya hai. Abhi 1 lakh rupees transfer karo nahi toh arrest hoge.
+
+### Message 5
+Aapki beti ke paas illegal drugs mila hai. Use jail se bachane ke liye 2 lakh rupees do. Police aa rahi hai use arrest karne.
+
+### Message 6
+Aapka PAN card fraud mein use hua hai. Income tax department investigation karega. 10,000 rupees do nahi toh court jana padega.
+
+---
+
+## Telugu (తెలుగు)
+
+### Message 1
+ఇది ఢిల్లీ క్రైమ్ బ్రాంచ్ నుండి మాట్లాడుతున్నాను. మీ ఆధార్ కార్డ్ చట్టవిరుద్ధంగా ఉపయోగించబడింది. వెంటనే పోలీస్ స్టేషన్ వస్తే లేదా అరెస్ట్ అవుతారు.
+
+### Message 2
+మీ సిమ్ కార్డ్ బ్లాక్ చేయబడింది ఎందుకంటే మీరు ఉగ్రవాద కార్యకలాపాలలో పాల్గొన్నారు. 50,000 రూపాయలు జమ చేయండి లేదా కేస్ నమోదు చేయబడుతుంది.
+
+### Message 3
+కస్టమ్స్ విభాగం మీ పార్సెల్‌ను స్వాధీనం చేసింది. దానిలో మాదకద్రవ్యాలు కనుగొనబడ్డాయి. 25,000 రూపాయలు జరిమానా చెల్లించండి లేదా జైలు శిక్ష అవుతుంది.
+
+### Message 4
+మీ బ్యాంక్ ఖాతా నుండి మనీ లాండరింగ్ జరిగింది. ED నోటీస్ జారీ చేయబడింది. 1 లక్ష రూపాయలు వెంటనే బదిలీ చేయండి లేదా అరెస్ట్ అవుతారు.
+
+### Message 5
+మీ కుమార్తె వద్ద చట్టవిరుద్ధమైన మత్తు పదార్థాలు కనుగొనబడ్డాయి. ఆమెను జైలు నుండి కాపాడటానికి 2 లక్షల రూపాయలు ఇవ్వండి. పోలీసులు వస్తున్నారు.
+
+### Message 6
+మీ పాన్ కార్డ్ మోసంలో ఉపయోగించబడింది. ఆదాయ పన్ను విభాగం దర్యాపు చేస్తుంది. 10,000 రూపాయలు చెల్లించండి లేదా కోర్టుకు వెళ్లాలి.
+
+---
+
+## Kannada (ಕನ್ನಡ)
+
+### Message 1
+ಇದು ದೆಹಲಿ ಕ್ರೈಮ್ ಬ್ರಾಂಚ್ ಮಾತನಾಡುತ್ತಿದೆ. ನಿಮ್ಮ ಆಧಾರ್ ಕಾರ್ಡ್ ಅಕ್ರಮವಾಗಿ ಬಳಸಲಾಗಿದೆ. ತಕ್ಷಣ ಪೊಲೀಸ್ ಸ್ಟೇಷನ್‌ಗೆ ಬನ್ನಿ ಅಥವಾ ಬಂಧಿಸಲಾಗುತ್ತದೆ.
+
+### Message 2
+ನಿಮ್ಮ ಸಿಮ್ ಕಾರ್ಡ್ ಬ್ಲಾಕ್ ಮಾಡಲಾಗಿದೆ ಏಕೆಂದರೆ ನೀವು ಭಯೋತ್ಪಾದಕ ಚಟುವಟಿಕೆಗಳಲ್ಲಿ ತೊಡಗಿಸಿಕೊಂಡಿದ್ದೀರಿ. 50,000 ರೂಪಾಯಿಗಳನ್ನು ಠೇವಣಿ ಮಾಡಿ ಅಥವಾ ಪ್ರಕರಣ ದಾಖಲಾಗುತ್ತದೆ.
+
+### Message 3
+ಕಸ್ಟಮ್ಸ್ ಇಲಾಖೆ ನಿಮ್ಮ ಪಾರ್ಸೆಲ್ ಅನ್ನು ವಶಪಡಿಸಿಕೊಂಡಿದೆ. ಅದರಲ್ಲಿ ಮಾದಕ ದ್ರವ್ಯಗಳು ಸಿಕ್ಕಿವೆ. 25,000 ರೂಪಾಯಿಗಳ ದಂಡ ಪಾವತಿಸಿ ಅಥವಾ ಜೈಲು ಶಿಕ್ಷೆ ಆಗುತ್ತದೆ.
+
+### Message 4
+ನಿಮ್ಮ ಬ್ಯಾಂಕ್ ಖಾತೆಯಿಂದ ಮನಿ ಲಾಂಡರಿಂಗ್ ಆಗಿದೆ. ED ನೋಟೀಸ್ ಜಾರಿ ಮಾಡಲಾಗಿದೆ. 1 ಲಕ್ಷ ರೂಪಾಯಿಗಳನ್ನು ತಕ್ಷಣ ವರ್ಗಾವಣೆ ಮಾಡಿ ಅಥವಾ ಬಂಧಿಸಲಾಗುತ್ತದೆ.
+
+### Message 5
+ನಿಮ್ಮ ಪುತ್ರಿ ಬಳಿ ಕಾನೂನು ಬಾಹಿರ ಮಾದಕ ದ್ರವ್ಯಗಳು ಸಿಕ್ಕಿವೆ. ಅವಳನ್ನು ಜೈಲಿನಿಂದ ರಕ್ಷಿಸಲು 2 ಲಕ್ಷ ರೂಪಾಯಿಗಳನ್ನು ಕೊಡಿ. ಪೊಲೀಸರು ಬರುತ್ತಿದ್ದಾರೆ.
+
+### Message 6
+ನಿಮ್ಮ ಪ್ಯಾನ್ ಕಾರ್ಡ್ ವಂಚನೆಯಲ್ಲಿ ಬಳಸಲಾಗಿದೆ. ಆದಾಯ ತೆರಿಗೆ ಇಲಾಖೆ ತನಿಖೆ ಮಾಡುತ್ತದೆ. 10,000 ರೂಪಾಯಿಗಳನ್ನು ಪಾವತಿಸಿ ಅಥವಾ ನ್ಯಾಯಾಲಯಕ್ಕೆ ಹೋಗಬೇಕು.
