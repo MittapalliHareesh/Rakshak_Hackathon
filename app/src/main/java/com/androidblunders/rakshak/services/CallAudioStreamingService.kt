@@ -17,6 +17,8 @@ class CallAudioStreamingService : Service() {
     companion object {
         private const val CHANNEL_ID = "CallAudioStreamingChannel"
         private const val NOTIFICATION_ID = 1002
+        // Point at your VOICE FastAPI host (default port 8000).
+        private const val VOICE_WS_BASE = "ws://10.0.2.2:8000"
         
         // This singleton approach allows easy access to the transcription from other places
         var currentTranscription: String = ""
@@ -30,17 +32,25 @@ class CallAudioStreamingService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        // Replace with your actual WebSocket server URL
-        streamingManager = AudioStreamingManager("ws://10.0.2.2:8080/audio") 
+        // VOICE backend WebSocket. 10.0.2.2 = host loopback from the Android emulator.
+        // For a physical device use the host machine's LAN IP. Override via VOICE_WS_BASE.
+        val callId = java.util.UUID.randomUUID().toString()
+        streamingManager = AudioStreamingManager("$VOICE_WS_BASE/ws/call/$callId")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
         val notification = createNotification()
-        startForeground(NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID, notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
 
         streamingManager?.startStreaming()
-        
         return START_STICKY
     }
 

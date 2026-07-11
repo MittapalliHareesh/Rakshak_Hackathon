@@ -7,6 +7,7 @@ import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.androidblunders.rakshak.audio.CallTranscriber
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,7 +16,7 @@ import javax.inject.Singleton
  * In-process call-state watcher (API 31+ [TelephonyCallback]).
  *
  * Complements [PhoneCallReceiver]: while the app process is alive this is the
- * reliable path to auto-start [CallRecordingService] the instant a call
+ * reliable path to auto-start the VOICE streaming service the instant a call
  * connects (starting a foreground service is permitted while the app is active).
  * The manifest receiver covers the "process not running" case.
  *
@@ -58,12 +59,12 @@ class CallStateMonitor @Inject constructor(
         when (state) {
             TelephonyManager.CALL_STATE_OFFHOOK -> {
                 Log.i(TAG, "Call connected → starting protection")
-                runCatching { CallRecordingService.start(context) }
-                    .onFailure { Log.e(TAG, "Could not start recording service", it) }
+                runCatching { CallTranscriber.startTranscription(context) }
+                    .onFailure { Log.e(TAG, "Could not start streaming service", it) }
             }
             TelephonyManager.CALL_STATE_IDLE -> {
                 Log.i(TAG, "Call ended → stopping protection")
-                runCatching { CallRecordingService.stop(context) }
+                runCatching { CallTranscriber.stopTranscription(context) }
             }
             else -> Unit // RINGING — wait for connect.
         }

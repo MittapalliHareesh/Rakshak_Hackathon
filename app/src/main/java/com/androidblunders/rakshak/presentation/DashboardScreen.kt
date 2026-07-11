@@ -142,11 +142,11 @@ private fun LiveCallSection() {
                 fontSize = 14.sp,
             )
             Button(
-                onClick = { com.androidblunders.rakshak.call.CallRecordingService.start(context) },
+                onClick = { com.androidblunders.rakshak.audio.CallTranscriber.startTranscription(context) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) { Text("Start live call protection") }
             OutlinedButton(
-                onClick = { com.androidblunders.rakshak.call.CallRecordingService.stop(context) },
+                onClick = { com.androidblunders.rakshak.audio.CallTranscriber.stopTranscription(context) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) { Text("Stop") }
         }

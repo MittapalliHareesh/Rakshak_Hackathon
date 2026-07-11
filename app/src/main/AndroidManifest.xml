@@ -36,6 +36,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Rakshak">
 
         <activity
@@ -65,14 +66,7 @@
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Live call / mic recording (16kHz PCM) for the STT + spam pipeline -->
-        <service
-            android:name=".call.CallRecordingService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="microphone" />
-
-        <!-- Adding CallAudioStreamingService -->
+        <!-- Live call audio → VOICE WebSocket (16kHz PCM) -->
          <service
             android:name=".services.CallAudioStreamingService"
             android:enabled="true"

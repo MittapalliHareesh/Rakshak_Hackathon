@@ -3,9 +3,9 @@ package com.androidblunders.rakshak.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.androidblunders.rakshak.call.LiveTranscriptBus
+import com.androidblunders.rakshak.core.contract.TextGenerator
 import com.androidblunders.rakshak.core.model.ThreatLevel
 import com.androidblunders.rakshak.gemma.GemmaModelManager
-import com.androidblunders.rakshak.gemma.GemmaTextGenerator
 import com.androidblunders.rakshak.messaging.MessageData
 import com.androidblunders.rakshak.messaging.MessageExtractor
 import com.androidblunders.rakshak.orchestrator.RakshakOrchestrator
@@ -43,14 +43,15 @@ class DashboardViewModel @Inject constructor(
     orchestrator: RakshakOrchestrator,
     fusionEngine: ThreatFusionEngine,
     private val spamDetection: SpamDetectionOrchestrator,
-    private val gemma: GemmaTextGenerator,
+    // FallbackTextGenerator: uses local Gemma if downloaded, else the Gemini API.
+    private val textGenerator: TextGenerator,
     private val modelManager: GemmaModelManager,
 ) : ViewModel() {
 
     val uiState: StateFlow<DashboardUiState> = combine(
         orchestrator.threatState,
         fusionEngine.currentConfidence,
-        gemma.isReady,
+        textGenerator.isReady,
         modelManager.status,
         spamDetection.latestResult,
     ) { level, confidence, ready, model, spam ->
@@ -58,7 +59,7 @@ class DashboardViewModel @Inject constructor(
             threatLevel = level,
             confidence = confidence,
             modelReady = ready,
-            backend = gemma.backend.value,
+            backend = textGenerator.backend.value,
             downloadProgress = model.progress,
             isDownloading = model.isDownloading,
             downloadedMb = model.downloadedBytes / 1_000_000,
@@ -69,9 +70,17 @@ class DashboardViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
-    /** Load / download the on-device Gemma weights and initialize the engine. */
+    /**
+     * Prepare the text generator. If Gemma weights are already downloaded it uses
+     * the local engine; otherwise it's instantly ready via the Gemini API.
+     */
     fun prepareModel() {
-        viewModelScope.launch { gemma.prepare() }
+        viewModelScope.launch { textGenerator.prepare() }
+    }
+
+    /** Optional: download the ~2.7 GB Gemma weights for fully-offline operation. */
+    fun downloadGemma() {
+        viewModelScope.launch { modelManager.downloadModel() }
     }
 
     /**

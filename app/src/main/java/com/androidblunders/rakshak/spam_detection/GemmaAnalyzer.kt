@@ -46,10 +46,11 @@ class GemmaAnalyzer @Inject constructor(
         }
 
         val prompt = buildPrompt(context)
-        Log.d(TAG, "Sending prompt to Gemma for sender=${context.sender}")
+        Log.d(TAG, "Sending prompt to Gemma for caller=${context.callerNumber}")
 
         val result = textGenerator.generate(prompt = prompt, systemInstruction = SYSTEM_PROMPT)
-        addToConversationWindow("${context.sender}: ${context.messageBody}")
+        val turnText = context.fullTranscriptText.ifBlank { context.allSmsText }
+        if (turnText.isNotBlank()) addToConversationWindow(turnText)
 
         return result.fold(
             onSuccess = { raw ->
@@ -157,27 +158,4 @@ score:      0.0 = completely safe, 1.0 = definitely malicious
 label:      the single best classification
 confidence: how certain you are"""
     }
-
-    private companion object {
-        const val TAG = "GemmaAnalyzer"
-        const val MAX_TURNS = 10
-
-        /**
-         * System instruction: forces a strict JSON reply we can parse deterministically.
-         * Passed to [TextGenerator.generate] as the systemInstruction.
-         */
-        const val SYSTEM_PROMPT = """You are Rakshak, an AI security assistant specialised in detecting SMS/call scams, phishing, digital-arrest extortion, and fraud on Indian mobile networks.
-
-Analyse the user's message and respond with ONLY a valid JSON object — no markdown, no explanation — in this exact format:
-{
-  "score": <float 0.0-1.0>,
-  "label": "<SAFE|SUSPICIOUS|PHISHING|SCAM|MALWARE>",
-  "confidence": <float 0.0-1.0>,
-  "reason": "<one concise sentence>"
 }
-
-score:      0.0 = completely safe, 1.0 = definitely malicious
-label:      the single best classification
-confidence: how certain you are"""
-    }
-
