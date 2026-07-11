@@ -69,6 +69,13 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- Live call / mic recording (16kHz PCM) for the STT + spam pipeline -->
+        <service
+            android:name=".call.CallRecordingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
     </application>
 
 </manifest>

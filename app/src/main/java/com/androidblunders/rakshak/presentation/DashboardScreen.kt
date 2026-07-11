@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,12 +84,18 @@ fun DashboardScreen(
                         progress = { state.downloadProgress },
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Text("Downloading model… ${(state.downloadProgress * 100).toInt()}%")
+                    Text(
+                        "Downloading ${(state.downloadProgress * 100).toInt()}%  " +
+                            "(${state.downloadedMb} / ${state.totalMb} MB)",
+                    )
+                }
+                state.downloadError?.let {
+                    Text("⚠️ $it", color = AlertRed, fontSize = 14.sp)
                 }
                 OutlinedButton(
                     onClick = viewModel::prepareModel,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                ) { Text("Load Gemma") }
+                ) { Text(if (state.isDownloading) "Downloading…" else "Load Gemma") }
             }
         }
 
@@ -103,12 +110,41 @@ fun DashboardScreen(
         Button(
             onClick = { viewModel.simulateMessage(draft) },
             modifier = Modifier.fillMaxWidth().height(56.dp),
-        ) { Text("Analyze message") }
+        ) { Text("Analyze message (SMS path)") }
+        Button(
+            onClick = { viewModel.simulateLiveTranscript(draft) },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+        ) { Text("Analyze as live call speech (STT path)") }
+
+        LiveCallSection()
 
         Spacer(Modifier.height(4.dp))
         // Live notification/SMS capture + permission gate. Every message shown here
-        // is also fed through the orchestrator via NotificationMessageSource.
+        // is also fed through the spam-detection pipeline.
         MessageMonitorSection()
+    }
+}
+
+@Composable
+private fun LiveCallSection() {
+    val context = LocalContext.current
+    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Live call protection", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(
+                "Starts a foreground mic recorder (16kHz PCM) that feeds the STT " +
+                    "module. Requires microphone permission.",
+                fontSize = 14.sp,
+            )
+            Button(
+                onClick = { com.androidblunders.rakshak.call.CallRecordingService.start(context) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) { Text("Start live call protection") }
+            OutlinedButton(
+                onClick = { com.androidblunders.rakshak.call.CallRecordingService.stop(context) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) { Text("Stop") }
+        }
     }
 }
 

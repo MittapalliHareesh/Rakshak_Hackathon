@@ -2,6 +2,7 @@ package com.androidblunders.rakshak.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.androidblunders.rakshak.call.LiveTranscriptBus
 import com.androidblunders.rakshak.core.model.ThreatLevel
 import com.androidblunders.rakshak.gemma.GemmaModelManager
 import com.androidblunders.rakshak.gemma.GemmaTextGenerator
@@ -26,6 +27,9 @@ data class DashboardUiState(
     val backend: String = "CPU",
     val downloadProgress: Float = 0f,
     val isDownloading: Boolean = false,
+    val downloadedMb: Long = 0L,
+    val totalMb: Long = 0L,
+    val downloadError: String? = null,
     val statusLine: String = "Monitoring active",
     val spamResult: SpamDetectionResult? = null,
 )
@@ -57,6 +61,9 @@ class DashboardViewModel @Inject constructor(
             backend = gemma.backend.value,
             downloadProgress = model.progress,
             isDownloading = model.isDownloading,
+            downloadedMb = model.downloadedBytes / 1_000_000,
+            totalMb = model.totalBytes / 1_000_000,
+            downloadError = model.error,
             statusLine = statusLineFor(level, ready),
             spamResult = spam,
         )
@@ -82,6 +89,14 @@ class DashboardViewModel @Inject constructor(
                 timestamp = System.currentTimeMillis(),
             ),
         )
+    }
+
+    /**
+     * Demo: simulate live-call speech-to-text. In production the STT module pushes
+     * here; this proves the live-text → spam-detection path end-to-end.
+     */
+    fun simulateLiveTranscript(text: String) {
+        LiveTranscriptBus.push(text, speaker = "Caller")
     }
 
     private fun statusLineFor(level: ThreatLevel, ready: Boolean): String = when {

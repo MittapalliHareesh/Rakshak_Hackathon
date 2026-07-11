@@ -1,8 +1,12 @@
 package com.androidblunders.rakshak.spam_detection
 
 import android.util.Log
+import com.androidblunders.rakshak.call.LiveTranscript
+import com.androidblunders.rakshak.call.LiveTranscriptBus
+import com.androidblunders.rakshak.core.model.ThreatLevel
 import com.androidblunders.rakshak.messaging.MessageData
 import com.androidblunders.rakshak.messaging.MessageExtractor
+import com.androidblunders.rakshak.orchestrator.ThreatFusionEngine as CoreThreatState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,7 +49,10 @@ data class SpamDetectionResult(
  */
 @Singleton
 class SpamDetectionOrchestrator @Inject constructor(
-    private val fusionEngine: ThreatFusionEngine
+    private val fusionEngine: ThreatFusionEngine,
+    // The app-wide ThreatLevel state (core). We push our score into it so the
+    // overlay/TTS responders and dashboard react — single source of truth.
+    private val coreThreatState: CoreThreatState,
 ) {
     companion object {
         private const val TAG = "SpamDetectionOrchestrator"
@@ -81,27 +88,31 @@ class SpamDetectionOrchestrator @Inject constructor(
     fun startObserving() {
         Log.i(TAG, "Starting spam detection pipeline…")
 
+        // Source 1: inbound SMS / chat notifications.
         MessageExtractor.messageFlow
-            .onEach { message -> processMessage(message) }
+            .onEach { message -> analyze(message.toCallContext()) }
             .catch { e -> Log.e(TAG, "messageFlow error — pipeline recovering", e) }
+            .launchIn(scope)
+
+        // Source 2: live call speech-to-text (pushed by the STT module).
+        LiveTranscriptBus.transcripts
+            .onEach { transcript -> analyze(transcript.toCallContext()) }
+            .catch { e -> Log.e(TAG, "transcript flow error — pipeline recovering", e) }
             .launchIn(scope)
     }
 
     // -------------------------------------------------------------------------
-    // Private pipeline
+    // Private pipeline (shared by messages + live transcripts)
     // -------------------------------------------------------------------------
 
-    private fun processMessage(message: MessageData) {
+    private fun analyze(context: CallContext) {
         scope.launch {
             try {
-                val context = message.toCallContext()
-                Log.d(TAG, "Analysing message from ${context.sender} " +
-                        "(${context.messageBody.take(60)}…)")
-
+                Log.d(TAG, "Analysing from ${context.sender} (${context.messageBody.take(60)}…)")
                 val threatScore = fusionEngine.evaluate(context)
                 onThreatScored(context, threatScore)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to process message from ${message.sender}", e)
+                Log.e(TAG, "Failed to process input from ${context.sender}", e)
             }
         }
     }
@@ -135,6 +146,10 @@ class SpamDetectionOrchestrator @Inject constructor(
         _latestResult.value = result
         _recentResults.value = (listOf(result) + _recentResults.value).take(MAX_RECENT)
 
+        // Align with core: push the mapped ThreatLevel into the app-wide state so
+        // the overlay + TTS responders and the dashboard banner react.
+        coreThreatState.override(mapToThreatLevel(score.score))
+
         Log.i(
             TAG, """
             ┌── Spam Detection Result ─────────────────────────
@@ -160,4 +175,21 @@ class SpamDetectionOrchestrator @Inject constructor(
         packageName = packageName,
         timestamp   = timestamp
     )
+
+    /** Converts a live STT [LiveTranscript] to the spam detection [CallContext]. */
+    private fun LiveTranscript.toCallContext() = CallContext(
+        sender      = speaker,
+        messageBody = text,
+        packageName = "live-call",
+        timestamp   = timestamp
+    )
+
+    /** Maps a fused 0..1 score to the app-wide [ThreatLevel] (same thresholds as core). */
+    private fun mapToThreatLevel(score: Float): ThreatLevel = when {
+        score >= 0.92f -> ThreatLevel.EMERGENCY
+        score >= 0.75f -> ThreatLevel.ACTIVE_THREAT
+        score >= 0.55f -> ThreatLevel.MEDIUM
+        score >= 0.30f -> ThreatLevel.LOW
+        else           -> ThreatLevel.IDLE
+    }
 }
