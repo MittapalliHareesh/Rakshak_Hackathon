@@ -24,4 +24,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Rakshak"
 include(":app")
-include(":spam_detection")
