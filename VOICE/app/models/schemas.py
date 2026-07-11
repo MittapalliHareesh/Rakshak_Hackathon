@@ -22,6 +22,23 @@ class TTSResponse(BaseModel):
     language: str = Field("hi-IN", description="Language code used for synthesis")
     voice_style: str = Field("urgent", description="Voice style used: urgent, clear, calm, emphatic")
 
+class STTRequest(BaseModel):
+    audio_base64: str = Field(..., description="Base64 encoded audio bytes (PCM/WAV) to transcribe")
+    language: str = Field("hi-IN", description="Source language code (e.g. hi-IN, en-IN, ta-IN, te-IN)")
+    mime_type: str = Field("audio/pcm;rate=16000", description="Audio MIME type and sample rate")
+    translate_to_english: bool = Field(True, description="Whether to also translate the transcription to English")
+
+class STTResponse(BaseModel):
+    transcription: str = Field(..., description="Transcribed text from audio")
+    language: str = Field(..., description="Source language code used")
+    translated_text: Optional[str] = Field("", description="English translation of transcription if requested")
+    detected_lang: Optional[str] = Field("", description="Detected source language")
+
+class STTStreamResponse(BaseModel):
+    event: str
+    text: Optional[str] = ""
+    language: str = "hi-IN"
+
 class OfflineClassifyRequest(BaseModel):
     transcript_chunk: str = Field(..., description="Cumulative or single transcript snippet from on-device local ASR")
 
