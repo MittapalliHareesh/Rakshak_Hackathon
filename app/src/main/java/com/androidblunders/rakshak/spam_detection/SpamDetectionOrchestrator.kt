@@ -10,26 +10,35 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * SpamDetectionOrchestrator — the pipeline entry-point.
+ * SpamDetectionOrchestrator — the pipeline entry-point for SMS / notification analysis.
  *
- * Subscribes to [MessageExtractor.messageFlow], converts each incoming
- * [MessageData] into a [CallContext], feeds it through [ThreatFusionEngine],
- * and logs / broadcasts the resulting [ThreatScore].
+ * ## What it does
+ * 1. Subscribes to [MessageExtractor.messageFlow] (SharedFlow<MessageData>).
+ * 2. Accumulates incoming messages into a **rolling SMS buffer** (max 25).
+ * 3. On every new message, assembles a rich [CallContext] from the buffer
+ *    (SMS list, device context, acoustic defaults) and sends it through
+ *    the [ThreatFusionEngine].
+ * 4. Logs the result (with TODO hooks for Room / StateFlow / notifications).
  *
  * ## Lifecycle
- * This singleton is created by Hilt and lives for the duration of the app
- * process. Call [startObserving] once from your Application class (or a
- * Hilt-injected initialiser) to activate the pipeline.
+ * This singleton lives for the duration of the app process.
+ * Call [startObserving] once from [RakshakApplication.onCreate].
+ *
+ * ## Thread safety
+ * [smsBuffer] is protected by a [Mutex] — concurrent writes from the
+ * SharedFlow collector and future SMS BroadcastReceiver are safe.
  *
  * ## Extending output
- * The `onThreatScored` lambda at the bottom of [startObserving] is the
- * integration point for UI updates, Room persistence, and notifications.
- * TODO: Replace the Log calls with a Room DAO insert and a LiveData/StateFlow
- *       emission once the security_history database is in place.
+ * TODO: Replace the Log calls in [onThreatScored] with:
+ *   1. Room DAO insert → security_history table
+ *   2. MutableStateFlow<AggregatedRiskState> → SecurityHistoryViewModel
+ *   3. NotificationManager alert when risk ≥ THRESHOLD_ALERT
  */
 @Singleton
 class SpamDetectionOrchestrator @Inject constructor(
@@ -38,93 +47,184 @@ class SpamDetectionOrchestrator @Inject constructor(
     companion object {
         private const val TAG = "SpamDetectionOrchestrator"
 
-        // Thresholds for quick human-readable status in logs
-        private const val THRESHOLD_SUSPICIOUS = 0.35f
-        private const val THRESHOLD_WARN       = 0.60f
-        private const val THRESHOLD_ALERT      = 0.80f
+        /** Maximum SMS messages kept in the rolling buffer. */
+        private const val MAX_SMS_BUFFER = 25
+
+        // Risk thresholds (0–100 scale to match AggregatedRiskState)
+        private const val THRESHOLD_SUSPICIOUS = 35f
+        private const val THRESHOLD_WARN       = 65f
+        private const val THRESHOLD_ALERT      = 80f
+        private const val THRESHOLD_INTERVENE  = 90f
     }
 
     /**
-     * A dedicated coroutine scope that survives configuration changes.
-     * SupervisorJob ensures that a failure in one child coroutine does
-     * not cancel the entire pipeline.
+     * Process-wide coroutine scope — SupervisorJob ensures a failure in
+     * one child coroutine never cancels the whole pipeline.
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** Thread-safe rolling buffer of recent SMS / notification messages. */
+    private val smsBuffer = mutableListOf<SMSMessage>()
+    private val bufferMutex = Mutex()
+
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
+
     /**
      * Begins observing [MessageExtractor.messageFlow].
-     * Safe to call multiple times — subsequent calls are no-ops because
-     * the flow collector is launched in the singleton [scope].
+     * Idempotent — safe to call multiple times; the singleton [scope] ensures
+     * a single active collector.
      */
     fun startObserving() {
         Log.i(TAG, "Starting spam detection pipeline…")
 
         MessageExtractor.messageFlow
-            .onEach { message -> processMessage(message) }
-            .catch { e -> Log.e(TAG, "messageFlow error — pipeline recovering", e) }
+            .onEach  { message -> handleIncomingMessage(message) }
+            .catch   { e -> Log.e(TAG, "messageFlow error — pipeline recovering", e) }
             .launchIn(scope)
+    }
+
+    /**
+     * Pushes an [SMSMessage] directly into the buffer (e.g. from an SMS
+     * BroadcastReceiver) and immediately triggers analysis.
+     * Can be called from any thread.
+     */
+    fun pushSms(sms: SMSMessage) {
+        scope.launch {
+            addToBuffer(sms)
+            analyzeCurrentBuffer()
+        }
     }
 
     // -------------------------------------------------------------------------
     // Private pipeline
     // -------------------------------------------------------------------------
 
-    private fun processMessage(message: MessageData) {
+    /** Called when a new notification / message arrives from MessageExtractor. */
+    private fun handleIncomingMessage(message: MessageData) {
         scope.launch {
-            try {
-                val context = message.toCallContext()
-                Log.d(TAG, "Analysing message from ${context.sender} " +
-                        "(${context.messageBody.take(60)}…)")
+            val sms = message.toSmsMessage()
+            addToBuffer(sms)
+            analyzeCurrentBuffer()
+        }
+    }
 
-                val threatScore = fusionEngine.evaluate(context)
-                onThreatScored(context, threatScore)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to process message from ${message.sender}", e)
-            }
+    /** Adds an [SMSMessage] to the rolling buffer (evicts oldest when over limit). */
+    private suspend fun addToBuffer(sms: SMSMessage) = bufferMutex.withLock {
+        smsBuffer.add(sms)
+        if (smsBuffer.size > MAX_SMS_BUFFER) {
+            smsBuffer.removeAt(0)
+        }
+    }
+
+    /** Snapshots the current buffer and runs it through the fusion engine. */
+    private suspend fun analyzeCurrentBuffer() {
+        val snapshot = bufferMutex.withLock { smsBuffer.toList() }
+        if (snapshot.isEmpty()) return
+
+        val latestSms = snapshot.last()
+
+        // Build the rich CallContext from the accumulated buffer.
+        // Note: transcript and acoustic features are empty here because this
+        // orchestrator handles SMS only. When the call-recording pipeline is
+        // wired up (Phase 2–3), TranscriptSegments and AcousticFeatures will
+        // be merged in from the ContextBuffer.
+        val context = CallContext(
+            callMetadata = CallMetadata(
+                callerNumber   = latestSms.sender,
+                isKnownContact = false,             // TODO: resolve against contacts DB
+                callDirection  = CallDirection.INCOMING,
+                callStartTimeMs = snapshot.first().receivedAtMs
+            ),
+            recentSmsMessages  = snapshot,
+            transcriptSegments = emptyList(),       // TODO: merge from ContextBuffer (Phase 3)
+            deviceContext      = DeviceContext(),    // TODO: populate from DeviceContextProvider
+            acousticFeatures   = AcousticFeatures() // TODO: populate from AcousticFeatureExtractor
+        )
+
+        try {
+            Log.d(TAG, "Analysing buffer: ${snapshot.size} SMS messages, " +
+                    "latest from ${latestSms.sender}")
+            val threatScore = fusionEngine.evaluate(context)
+            onThreatScored(context, threatScore)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to analyse buffer", e)
         }
     }
 
     /**
-     * Called with the final fused [ThreatScore] for every incoming message.
-     *
-     * Current behaviour: structured log output.
-     *
-     * TODO: Add the following integrations as the app grows —
-     *   1. Room insert → security_history table
-     *   2. StateFlow / LiveData emission → SecurityHistoryViewModel
-     *   3. NotificationManager alert when score ≥ THRESHOLD_ALERT
+     * Called with the fused [ThreatScore] for every analysis pass.
+     * Currently writes a structured log. Hook in Room / StateFlow / Notification here.
      */
     private fun onThreatScored(ctx: CallContext, score: ThreatScore) {
+        // Scale to 0-100 for display (ThreatScore uses 0.0-1.0)
+        val scaledScore = score.score * 100f
+
         val level = when {
-            score.score >= THRESHOLD_ALERT      -> "🚨 ALERT"
-            score.score >= THRESHOLD_WARN       -> "⚠️  WARN"
-            score.score >= THRESHOLD_SUSPICIOUS -> "🟡 SUSPICIOUS"
-            else                                -> "✅ SAFE"
+            scaledScore >= THRESHOLD_INTERVENE -> "🚨 INTERVENE"
+            scaledScore >= THRESHOLD_ALERT     -> "🔴 ALERT"
+            scaledScore >= THRESHOLD_WARN      -> "⚠️  WARN"
+            scaledScore >= THRESHOLD_SUSPICIOUS -> "🟡 SUSPICIOUS"
+            else                               -> "✅ SAFE"
         }
 
-        Log.i(
-            TAG, """
-            ┌── Spam Detection Result ─────────────────────────
-            │  Sender   : ${ctx.sender}
-            │  Package  : ${ctx.packageName}
-            │  Score    : ${"%.3f".format(score.score)} (${(score.score * 100).toInt()}%)
-            │  Label    : ${score.label}
-            │  Confidence: ${"%.1f".format(score.confidence * 100)}%
-            │  Status   : $level
-            └──────────────────────────────────────────────────
-            """.trimIndent()
-        )
+        val signalStr = if (score.signals.isEmpty()) "none" else score.signals.joinToString()
+        val otpFlag   = if (ctx.hasOtpSms) " [OTP SMS present]" else ""
+        val upiFlag   = if (ctx.hasUpiSms) " [UPI SMS present]" else ""
+
+        Log.i(TAG, """
+            ┌── Spam Detection Result ──────────────────────────────────
+            │  Caller      : ${ctx.callerNumber}
+            │  Known contact: ${ctx.isKnownContact}
+            │  SMS in buffer: ${ctx.recentSmsMessages.size}$otpFlag$upiFlag
+            │  Stage       : ${score.stage}
+            │  Score       : ${"%.1f".format(scaledScore)}/100
+            │  Label       : ${score.label}
+            │  Confidence  : ${"%.1f".format(score.confidence * 100)}%
+            │  Signals     : $signalStr
+            │  Status      : $level
+            └───────────────────────────────────────────────────────────
+        """.trimIndent())
+
+        // TODO (Phase 5): Emit to RiskAggregator instead of logging directly
+        // TODO (Phase 6): Trigger InterventionEngine based on scaledScore
+        // TODO: Insert into Room security_history DAO
+        // TODO: Emit via MutableStateFlow<ThreatScore> to SecurityHistoryViewModel
     }
 
     // -------------------------------------------------------------------------
     // Extension helpers
     // -------------------------------------------------------------------------
 
-    /** Converts the messaging layer's [MessageData] to the spam detection [CallContext]. */
-    private fun MessageData.toCallContext() = CallContext(
-        sender      = sender,
-        messageBody = content,
-        packageName = packageName,
-        timestamp   = timestamp
+    /**
+     * Converts the messaging layer's [MessageData] into an [SMSMessage].
+     * Also performs lightweight OTP and link detection.
+     */
+    private fun MessageData.toSmsMessage() = SMSMessage(
+        sender       = sender,
+        body         = content,
+        packageName  = packageName,
+        receivedAtMs = timestamp,
+        isOtp        = OTP_REGEX.containsMatchIn(content),
+        extractedUpi = UPI_REGEX.find(content)?.value,
+        containsLink = LINK_REGEX.containsMatchIn(content)
     )
+
+    companion object Patterns {
+        /** Detects common OTP patterns: "OTP is 123456", "Your code: 456789", etc. */
+        private val OTP_REGEX = Regex(
+            """(?i)(otp|one.time.pass|verification.code|code\s+is)\D{0,10}\d{4,8}"""
+        )
+
+        /** Detects UPI IDs: "pay@upi", "attacker@ybl", etc. */
+        private val UPI_REGEX = Regex(
+            """[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}"""
+        )
+
+        /** Detects URLs and shortened links. */
+        private val LINK_REGEX = Regex(
+            """(https?://|bit\.ly|tinyurl|t\.co|goo\.gl)\S+"""
+        )
+    }
 }

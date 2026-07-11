@@ -97,15 +97,28 @@ class ThreatFusionEngine @Inject constructor(
             }
 
             val fusedConfidence = validScores.map { it.confidence }.average().toFloat()
-            val dominantLabel = decideDominantLabel(fusedScore)
+            val dominantLabel  = decideDominantLabel(fusedScore)
 
-            Log.d(TAG, "Fused score=$fusedScore label=$dominantLabel " +
-                    "(${validScores.size}/${analyzers.size} analyzers responded)")
+            // Merge all unique signals from every analyzer into one list
+            val fusedSignals = validScores
+                .flatMap { it.signals }
+                .distinct()
+
+            // Prefer the most advanced stage detected across analyzers
+            val dominantStage = validScores
+                .map { it.stage }
+                .maxByOrNull { it.ordinal }
+                ?: ConversationStage.UNKNOWN
+
+            Log.d(TAG, "Fused score=$fusedScore label=$dominantLabel stage=$dominantStage " +
+                    "signals=$fusedSignals (${validScores.size}/${analyzers.size} analyzers responded)")
 
             ThreatScore(
                 score      = fusedScore.coerceIn(0f, 1f),
                 label      = dominantLabel,
                 confidence = fusedConfidence.coerceIn(0f, 1f),
+                signals    = fusedSignals,
+                stage      = dominantStage,
                 rawOutput  = validScores.joinToString(" | ") { it.rawOutput }
             )
         }
