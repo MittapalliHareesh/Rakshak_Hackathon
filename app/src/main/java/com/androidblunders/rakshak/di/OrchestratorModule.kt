@@ -7,7 +7,6 @@ import com.androidblunders.rakshak.core.contract.ThreatAnalyzer
 import com.androidblunders.rakshak.core.contract.ThreatResponder
 import com.androidblunders.rakshak.orchestrator.DefaultThreatFusionEngine
 import com.androidblunders.rakshak.orchestrator.ThreatFusionEngine
-import com.androidblunders.rakshak.stub.LoggingTextToSpeech
 import com.androidblunders.rakshak.stub.LoggingThreatResponder
 import com.androidblunders.rakshak.stub.NoOpSpeechToText
 import dagger.Binds
@@ -45,7 +44,9 @@ abstract class OrchestratorModule {
 
     @Binds
     @Singleton
-    abstract fun bindTextToSpeech(impl: LoggingTextToSpeech): TextToSpeechEngine
+    abstract fun bindTextToSpeech(
+        impl: com.androidblunders.rakshak.services.responder.AndroidTextToSpeechEngine,
+    ): TextToSpeechEngine
 
     // --- Analyzers (fused) -------------------------------------------------
     // NOTE: message + live-call scoring is owned by the `spam_detection` package

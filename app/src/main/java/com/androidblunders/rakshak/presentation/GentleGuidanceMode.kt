@@ -34,7 +34,7 @@ fun GentleGuidanceMode(onHangUp: () -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         
         Text(
-            text = "We have blocked the threat. Please press the red button below to end the call safely.",
+            text = "We detected a possible threat. Press the button below, then use the phone screen to end the call safely.",
             style = MaterialTheme.typography.headlineSmall.copy(
                 color = MaterialTheme.colorScheme.onPrimary
             ),
@@ -54,7 +54,7 @@ fun GentleGuidanceMode(onHangUp: () -> Unit) {
             )
         ) {
             Text(
-                text = "END CALL",
+                text = "RETURN TO CALL SCREEN",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold
                 )

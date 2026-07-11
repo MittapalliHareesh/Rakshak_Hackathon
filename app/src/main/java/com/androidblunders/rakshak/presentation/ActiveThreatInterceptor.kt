@@ -33,7 +33,7 @@ fun ActiveThreatInterceptor(onHangUp: () -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         
         Text(
-            text = "This caller is attempting to scam you. Hang up immediately. Do not share personal details.",
+            text = "This caller may be attempting to scam you. Do not share personal details. Return to the phone screen and end the call.",
             style = MaterialTheme.typography.headlineSmall.copy(
                 color = MaterialTheme.colorScheme.onPrimary
             ),
@@ -53,7 +53,7 @@ fun ActiveThreatInterceptor(onHangUp: () -> Unit) {
             )
         ) {
             Text(
-                text = "HANG UP NOW",
+                text = "RETURN TO CALL — HANG UP",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold
                 )

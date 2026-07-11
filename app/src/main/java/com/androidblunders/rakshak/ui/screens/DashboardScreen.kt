@@ -1,13 +1,19 @@
 package com.androidblunders.rakshak.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
@@ -56,6 +63,8 @@ private val AlertRed = Color(0xFFBA1A1A)
 fun DashboardScreen(
     modifier: Modifier = Modifier,
     viewModel: DashboardViewModel = hiltViewModel(),
+    onOpenHistory: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -72,6 +81,22 @@ fun DashboardScreen(
         Text("Rakshak", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = GuardianBlue)
 
         ThreatBanner(state)
+
+        ProtectionReadinessSection()
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutlinedButton(
+                onClick = onOpenHistory,
+                modifier = Modifier.weight(1f).height(56.dp),
+            ) { Text("History") }
+            OutlinedButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.weight(1f).height(56.dp),
+            ) { Text("Settings") }
+        }
 
         CallProtectionSection()
         
@@ -154,6 +179,76 @@ fun DashboardScreen(
         // Live notification/SMS capture + permission gate. Every message shown here
         // is also fed through the spam-detection pipeline.
         MessageMonitorSection()
+    }
+}
+
+@Composable
+private fun ProtectionReadinessSection() {
+    val context = LocalContext.current
+    var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    var permissionRefresh by remember { mutableIntStateOf(0) }
+    val settingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        permissionRefresh++
+        overlayGranted = Settings.canDrawOverlays(context)
+    }
+    val micGranted = permissionRefresh.let {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+    val smsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) ==
+        PackageManager.PERMISSION_GRANTED
+    val phoneGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) ==
+        PackageManager.PERMISSION_GRANTED
+    val checks = listOf(
+        "Call activation" to phoneGranted,
+        "Audio capture" to micGranted,
+        "Real SMS reading" to smsGranted,
+        "Threat overlay" to overlayGranted,
+    )
+    val completed = checks.count { it.second }
+
+    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Protection readiness · $completed/${checks.size}", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            LinearProgressIndicator(
+                progress = { completed.toFloat() / checks.size },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            checks.forEach { (label, ready) ->
+                Text(
+                    "${if (ready) "✓" else "○"} $label",
+                    color = if (ready) SafetyGreen else AlertRed,
+                )
+            }
+            if (!micGranted || !smsGranted || !phoneGranted) {
+                OutlinedButton(
+                    onClick = {
+                        settingsLauncher.launch(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:${context.packageName}"),
+                            ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                ) { Text("Open app permissions") }
+            }
+            if (!overlayGranted) {
+                OutlinedButton(
+                    onClick = {
+                        settingsLauncher.launch(
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:${context.packageName}"),
+                            ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                ) { Text("Allow threat overlay") }
+            }
+        }
     }
 }
 

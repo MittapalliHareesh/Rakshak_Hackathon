@@ -151,6 +151,7 @@ class SpamDetectionOrchestrator @Inject constructor(
     private fun buildTranscriptContext(): CallContext = CallContext(
         callMetadata = CallMetadata(callerNumber = "Live Call"),
         transcriptSegments = transcriptBuffer.toList(),
+        recentSmsMessages = smsBuffer.toList(),
     )
 
     private fun MessageData.toSms() = SMSMessage(

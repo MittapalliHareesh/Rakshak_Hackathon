@@ -11,9 +11,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.androidblunders.rakshak.call.CallStateMonitor
 import com.androidblunders.rakshak.ui.screens.DashboardScreen
+import com.androidblunders.rakshak.presentation.SecurityHistoryScreen
+import com.androidblunders.rakshak.presentation.SettingsScreen
 import com.androidblunders.rakshak.ui.theme.Typography
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -40,8 +46,24 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(typography = Typography) { Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                DashboardScreen(modifier = Modifier.padding(innerPadding)) } }
+            MaterialTheme(typography = Typography) {
+                var screen by rememberSaveable { mutableStateOf(AppScreen.DASHBOARD) }
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    when (screen) {
+                        AppScreen.DASHBOARD -> DashboardScreen(
+                            modifier = Modifier.padding(innerPadding),
+                            onOpenHistory = { screen = AppScreen.HISTORY },
+                            onOpenSettings = { screen = AppScreen.SETTINGS },
+                        )
+                        AppScreen.HISTORY -> SecurityHistoryScreen(
+                            onNavigateBack = { screen = AppScreen.DASHBOARD },
+                        )
+                        AppScreen.SETTINGS -> SettingsScreen(
+                            onNavigateBack = { screen = AppScreen.DASHBOARD },
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -52,7 +74,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestCorePermissions() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         val permissions = mutableListOf(
             android.Manifest.permission.READ_SMS,
             android.Manifest.permission.RECEIVE_SMS,
@@ -69,4 +90,6 @@ class MainActivity : ComponentActivity() {
             corePermissionLauncher.launch(missing.toTypedArray())
         }
     }
+
+    private enum class AppScreen { DASHBOARD, HISTORY, SETTINGS }
 }

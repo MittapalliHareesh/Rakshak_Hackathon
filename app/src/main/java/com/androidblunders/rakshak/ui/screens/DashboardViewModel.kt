@@ -49,6 +49,8 @@ class DashboardViewModel @Inject constructor(
     private val modelManager: GemmaModelManager,
 ) : ViewModel() {
 
+    val recentResults: StateFlow<List<SpamDetectionResult>> = spamDetection.recentResults
+
     val uiState: StateFlow<DashboardUiState> = combine(
         orchestrator.threatState,
         fusionEngine.currentConfidence,

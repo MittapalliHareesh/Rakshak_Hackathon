@@ -16,12 +16,10 @@ class MessageNotificationListenerService : NotificationListenerService() {
             var text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
 
             // Handle MessagingStyle notifications (common in WhatsApp, etc.)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
-                if (messages != null && messages.isNotEmpty()) {
-                    val lastMessage = messages.last() as? android.os.Bundle
-                    text = lastMessage?.getCharSequence("text")?.toString() ?: text
-                }
+            val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
+            if (messages != null && messages.isNotEmpty()) {
+                val lastMessage = messages.last() as? android.os.Bundle
+                text = lastMessage?.getCharSequence("text")?.toString() ?: text
             }
 
             if (text.isNullOrEmpty()) {

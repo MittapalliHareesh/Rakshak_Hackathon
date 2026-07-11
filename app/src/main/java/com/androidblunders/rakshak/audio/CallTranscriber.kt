@@ -14,11 +14,7 @@ object CallTranscriber {
      */
     fun startTranscription(context: Context) {
         val intent = Intent(context, CallAudioStreamingService::class.java)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
+        context.startForegroundService(intent)
     }
 
     /**
@@ -29,10 +25,4 @@ object CallTranscriber {
         context.stopService(intent)
     }
 
-    /**
-     * Retrieves the current accumulated transcript as a string.
-     */
-    fun getTranscript(): String {
-        return CallAudioStreamingService.getTranscription()
-    }
 }

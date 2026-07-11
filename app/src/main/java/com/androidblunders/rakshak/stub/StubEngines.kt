@@ -60,7 +60,7 @@ class LoggingThreatResponder @Inject constructor(
             ThreatLevel.ACTIVE_THREAT ->
                 tts.speak("This looks like a scam. Do not share any details. Hang up now.", Priority.CRITICAL)
             ThreatLevel.EMERGENCY ->
-                tts.speak("Danger. Alerting your family now.", Priority.CRITICAL)
+                tts.speak("Danger. This appears to be a scam. Hang up now.", Priority.CRITICAL)
             ThreatLevel.GENTLE_GUIDANCE ->
                 tts.speak("Beta, I am here. Let us hang up together. Press the green button.", Priority.NORMAL)
             ThreatLevel.MEDIUM ->

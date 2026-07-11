@@ -23,7 +23,10 @@ class OverlayThreatResponder @Inject constructor(
 ) : ThreatResponder {
 
     override suspend fun onThreatLevel(level: ThreatLevel) {
-        if (level == ThreatLevel.ACTIVE_THREAT || level == ThreatLevel.GENTLE_GUIDANCE) {
+        if (level == ThreatLevel.ACTIVE_THREAT ||
+            level == ThreatLevel.EMERGENCY ||
+            level == ThreatLevel.GENTLE_GUIDANCE
+        ) {
             if (Settings.canDrawOverlays(context)) {
                 val intent = Intent(context, OverlayService::class.java).apply {
                     putExtra(OverlayService.EXTRA_THREAT_LEVEL, level.name)
