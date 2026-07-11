@@ -1,8 +1,12 @@
 package com.androidblunders.rakshak.spam_detection
 
 import android.util.Log
+import com.androidblunders.rakshak.call.LiveTranscript
+import com.androidblunders.rakshak.call.LiveTranscriptBus
+import com.androidblunders.rakshak.core.model.ThreatLevel
 import com.androidblunders.rakshak.messaging.MessageData
 import com.androidblunders.rakshak.messaging.MessageExtractor
+import com.androidblunders.rakshak.orchestrator.ThreatFusionEngine as CoreThreatState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,6 +21,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** UI-facing result of a single analyzed message. */
+data class SpamDetectionResult(
+    val sender: String,
+    val messageBody: String,
+    val score: ThreatScore,
+    val status: String,
+    val timestamp: Long,
+)
 
 /** UI-facing result of a single analyzed message. */
 data class SpamDetectionResult(
@@ -54,7 +67,10 @@ data class SpamDetectionResult(
  */
 @Singleton
 class SpamDetectionOrchestrator @Inject constructor(
-    private val fusionEngine: ThreatFusionEngine
+    private val fusionEngine: ThreatFusionEngine,
+    // The app-wide ThreatLevel state (core). We push our score into it so the
+    // overlay/TTS responders and dashboard react — single source of truth.
+    private val coreThreatState: CoreThreatState,
 ) {
     companion object {
         private const val TAG = "SpamDetectionOrchestrator"
@@ -69,7 +85,6 @@ class SpamDetectionOrchestrator @Inject constructor(
         private const val THRESHOLD_SUSPICIOUS = 0.35f
         private const val THRESHOLD_WARN       = 0.60f
         private const val THRESHOLD_ALERT      = 0.80f
-        private const val THRESHOLD_INTERVENE  = 0.90f
     }
 
     /**
@@ -77,18 +92,6 @@ class SpamDetectionOrchestrator @Inject constructor(
      * one child coroutine never cancels the whole pipeline.
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-    /** Latest analyzed message result. Observed by the dashboard / debug UI. */
-    private val _latestResult = MutableStateFlow<SpamDetectionResult?>(null)
-    val latestResult: StateFlow<SpamDetectionResult?> = _latestResult.asStateFlow()
-
-    /** Rolling log of recent results (newest first), capped for memory. */
-    private val _recentResults = MutableStateFlow<List<SpamDetectionResult>>(emptyList())
-    val recentResults: StateFlow<List<SpamDetectionResult>> = _recentResults.asStateFlow()
-
-    /** Thread-safe rolling buffer of recent SMS / notification messages. */
-    private val smsBuffer = mutableListOf<SMSMessage>()
-    private val bufferMutex = Mutex()
 
     /**
      * Begins observing [MessageExtractor.messageFlow].
@@ -98,9 +101,16 @@ class SpamDetectionOrchestrator @Inject constructor(
     fun startObserving() {
         Log.i(TAG, "Starting spam detection pipeline…")
 
+        // Source 1: inbound SMS / chat notifications.
         MessageExtractor.messageFlow
-            .onEach  { message -> handleIncomingMessage(message) }
-            .catch   { e -> Log.e(TAG, "messageFlow error — pipeline recovering", e) }
+            .onEach { message -> processMessage(message) }
+            .catch { e -> Log.e(TAG, "messageFlow error — pipeline recovering", e) }
+            .launchIn(scope)
+
+        // Source 2: live call speech-to-text (pushed by the STT module).
+        LiveTranscriptBus.transcripts
+            .onEach { transcript -> analyze(transcript.toCallContext()) }
+            .catch { e -> Log.e(TAG, "transcript flow error — pipeline recovering", e) }
             .launchIn(scope)
     }
 
@@ -117,58 +127,21 @@ class SpamDetectionOrchestrator @Inject constructor(
     }
 
     // -------------------------------------------------------------------------
-    // Private pipeline
+    // Private pipeline (shared by messages + live transcripts)
     // -------------------------------------------------------------------------
 
-    /** Called when a new notification / message arrives from MessageExtractor. */
-    private fun handleIncomingMessage(message: MessageData) {
+    private fun processMessage(message: MessageData) {
         scope.launch {
-            val sms = message.toSmsMessage()
-            addToBuffer(sms)
-            analyzeCurrentBuffer()
-        }
-    }
+            try {
+                val context = message.toCallContext()
+                Log.d(TAG, "Analysing message from ${context.sender} " +
+                        "(${context.messageBody.take(60)}…)")
 
-    /** Adds an [SMSMessage] to the rolling buffer (evicts oldest when over limit). */
-    private suspend fun addToBuffer(sms: SMSMessage) = bufferMutex.withLock {
-        smsBuffer.add(sms)
-        if (smsBuffer.size > MAX_SMS_BUFFER) {
-            smsBuffer.removeAt(0)
-        }
-    }
-
-    /** Snapshots the current buffer and runs it through the fusion engine. */
-    private suspend fun analyzeCurrentBuffer() {
-        val snapshot = bufferMutex.withLock { smsBuffer.toList() }
-        if (snapshot.isEmpty()) return
-
-        val latestSms = snapshot.last()
-
-        // Build the rich CallContext from the accumulated buffer.
-        // Note: transcript and acoustic features are empty here because this
-        // orchestrator handles SMS only. When the call-recording pipeline is
-        // wired up (Phase 2–3), TranscriptSegments and AcousticFeatures will
-        // be merged in from the ContextBuffer.
-        val context = CallContext(
-            callMetadata = CallMetadata(
-                callerNumber   = latestSms.sender,
-                isKnownContact = false,             // TODO: resolve against contacts DB
-                callDirection  = CallDirection.INCOMING,
-                callStartTimeMs = snapshot.first().receivedAtMs
-            ),
-            recentSmsMessages  = snapshot,
-            transcriptSegments = emptyList(),       // TODO: merge from ContextBuffer (Phase 3)
-            deviceContext      = DeviceContext(),    // TODO: populate from DeviceContextProvider
-            acousticFeatures   = AcousticFeatures() // TODO: populate from AcousticFeatureExtractor
-        )
-
-        try {
-            Log.d(TAG, "Analysing buffer: ${snapshot.size} SMS messages, " +
-                    "latest from ${latestSms.sender}")
-            val threatScore = fusionEngine.evaluate(context)
-            onThreatScored(context, threatScore)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to analyse buffer", e)
+                val threatScore = fusionEngine.evaluate(context)
+                onThreatScored(context, threatScore)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to process message from ${message.sender}", e)
+            }
         }
     }
 
@@ -186,22 +159,6 @@ class SpamDetectionOrchestrator @Inject constructor(
             scaledScore >= THRESHOLD_SUSPICIOUS -> "🟡 SUSPICIOUS"
             else                                -> "✅ SAFE"
         }
-
-        val latestSms = ctx.recentSmsMessages.lastOrNull()
-        val otpFlag   = if (ctx.hasOtpSms) " [OTP]" else ""
-        val upiFlag   = if (ctx.hasUpiSms) " [UPI]" else ""
-        val signalStr = if (score.signals.isEmpty()) "none" else score.signals.joinToString()
-
-        // Publish to StateFlow observers (UI / dashboard).
-        val result = SpamDetectionResult(
-            sender      = ctx.callerNumber,
-            messageBody = latestSms?.body ?: ctx.allSmsText.take(120),
-            score       = score,
-            status      = level,
-            timestamp   = ctx.analysisTimestampMs,
-        )
-        _latestResult.value = result
-        _recentResults.value = (listOf(result) + _recentResults.value).take(MAX_RECENT)
 
         Log.i(
             TAG, """
@@ -228,34 +185,11 @@ class SpamDetectionOrchestrator @Inject constructor(
     // Extension helpers
     // -------------------------------------------------------------------------
 
-    /**
-     * Converts the messaging layer's [MessageData] into an [SMSMessage].
-     * Also performs lightweight OTP and link detection.
-     */
-    private fun MessageData.toSmsMessage() = SMSMessage(
-        sender       = sender,
-        body         = content,
-        packageName  = packageName,
-        receivedAtMs = timestamp,
-        isOtp        = OTP_REGEX.containsMatchIn(content),
-        extractedUpi = UPI_REGEX.find(content)?.value,
-        containsLink = LINK_REGEX.containsMatchIn(content)
+    /** Converts the messaging layer's [MessageData] to the spam detection [CallContext]. */
+    private fun MessageData.toCallContext() = CallContext(
+        sender      = sender,
+        messageBody = content,
+        packageName = packageName,
+        timestamp   = timestamp
     )
-
-    companion object Patterns {
-        /** Detects common OTP patterns: "OTP is 123456", "Your code: 456789", etc. */
-        private val OTP_REGEX = Regex(
-            """(?i)(otp|one.time.pass|verification.code|code\s+is)\D{0,10}\d{4,8}"""
-        )
-
-        /** Detects UPI IDs: "pay@upi", "attacker@ybl", etc. */
-        private val UPI_REGEX = Regex(
-            """[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}"""
-        )
-
-        /** Detects URLs and shortened links. */
-        private val LINK_REGEX = Regex(
-            """(https?://|bit\.ly|tinyurl|t\.co|goo\.gl)\S+"""
-        )
-    }
 }

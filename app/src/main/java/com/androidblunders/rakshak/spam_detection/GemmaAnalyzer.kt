@@ -87,6 +87,7 @@ class GemmaAnalyzer @Inject constructor(
             append(windowText)
         }
     }
+
     private fun addToConversationWindow(turn: String) {
         if (conversationWindow.size >= MAX_TURNS) conversationWindow.removeFirst()
         conversationWindow.addLast(turn)
@@ -151,11 +152,16 @@ Analyse the user's message and respond with ONLY a valid JSON object — no mark
   "score": <float 0.0-1.0>,
   "label": "<SAFE|SUSPICIOUS|PHISHING|SCAM|MALWARE>",
   "confidence": <float 0.0-1.0>,
+  "signals": ["<SIGNAL_1>", "<SIGNAL_2>"],
+  "stage": "<UNKNOWN|INTRO|AUTHORITY_ESTABLISHMENT|FEAR_INDUCTION|THREAT_DELIVERY|ISOLATION|FINANCIAL_EXTRACTION|RESOLUTION>",
   "reason": "<one concise sentence>"
 }
 
 score:      0.0 = completely safe, 1.0 = definitely malicious
 label:      the single best classification
-confidence: how certain you are"""
+confidence: how certain you are
+signals:    Named threat signals you detected. Use values like: UPI_EXTORTION, OTP_CORRELATION, URGENCY_KEYWORD, AUTHORITY_IMPERSONATION, DIGITAL_ARREST, PAYMENT_LINK, MALWARE_APK, PHISHING_LINK, UNKNOWN_CALLER, RAPID_SPEECH, HIGH_INTERRUPTIONS, SHORT_CALL_SPIKE
+stage:      The conversation stage.
+"""
     }
 }

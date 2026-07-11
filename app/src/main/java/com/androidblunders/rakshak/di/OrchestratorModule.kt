@@ -5,8 +5,6 @@ import com.androidblunders.rakshak.core.contract.SpeechToTextEngine
 import com.androidblunders.rakshak.core.contract.TextToSpeechEngine
 import com.androidblunders.rakshak.core.contract.ThreatAnalyzer
 import com.androidblunders.rakshak.core.contract.ThreatResponder
-import com.androidblunders.rakshak.detection.GemmaThreatAnalyzer
-import com.androidblunders.rakshak.detection.NotificationMessageSource
 import com.androidblunders.rakshak.orchestrator.DefaultThreatFusionEngine
 import com.androidblunders.rakshak.orchestrator.ThreatFusionEngine
 import com.androidblunders.rakshak.stub.LoggingTextToSpeech
@@ -50,20 +48,17 @@ abstract class OrchestratorModule {
     abstract fun bindTextToSpeech(impl: LoggingTextToSpeech): TextToSpeechEngine
 
     // --- Analyzers (fused) -------------------------------------------------
+    // NOTE: message + live-call scoring is owned by the `spam_detection` package
+    // (SpamDetectionOrchestrator → GemmaAnalyzer), which pushes the resulting
+    // ThreatLevel into this fusion engine via override(). So this core analyzer
+    // set is intentionally empty — avoids running Gemma twice per input.
     @Multibinds
     abstract fun analyzers(): Set<ThreatAnalyzer>
 
-    @Binds
-    @IntoSet
-    abstract fun bindGemmaAnalyzer(impl: GemmaThreatAnalyzer): ThreatAnalyzer
-
     // --- Message sources (fanned-in) --------------------------------------
+    // Also owned by spam_detection now; kept as an (empty) extension point.
     @Multibinds
     abstract fun messageSources(): Set<MessageSource>
-
-    @Binds
-    @IntoSet
-    abstract fun bindNotificationSource(impl: NotificationMessageSource): MessageSource
 
     // --- Responders (intervention side-effects) ---------------------------
     @Multibinds
