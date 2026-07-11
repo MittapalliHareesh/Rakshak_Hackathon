@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.androidblunders.rakshak.core.model.ThreatLevel
 import com.androidblunders.rakshak.gemma.GemmaModelManager
 import com.androidblunders.rakshak.gemma.GemmaTextGenerator
+import com.androidblunders.rakshak.messaging.MessageData
+import com.androidblunders.rakshak.messaging.MessageExtractor
 import com.androidblunders.rakshak.orchestrator.RakshakOrchestrator
 import com.androidblunders.rakshak.orchestrator.ThreatFusionEngine
-import com.androidblunders.rakshak.stub.NoOpSpeechToText
+import com.androidblunders.rakshak.spam_detection.SpamDetectionOrchestrator
+import com.androidblunders.rakshak.spam_detection.SpamDetectionResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,37 +27,38 @@ data class DashboardUiState(
     val downloadProgress: Float = 0f,
     val isDownloading: Boolean = false,
     val statusLine: String = "Monitoring active",
+    val spamResult: SpamDetectionResult? = null,
 )
 
 /**
- * Presentation glue. It only OBSERVES orchestrator/fusion/gemma state and exposes
- * two demo actions — it holds no protection logic itself.
+ * Presentation glue. Observes both the orchestrator/fusion/gemma state AND the
+ * spam-detection pipeline output, and exposes two demo actions.
  */
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     orchestrator: RakshakOrchestrator,
     fusionEngine: ThreatFusionEngine,
+    private val spamDetection: SpamDetectionOrchestrator,
     private val gemma: GemmaTextGenerator,
     private val modelManager: GemmaModelManager,
-    // Concrete demo STT so we can inject a fake transcript from the UI.
-    private val demoStt: NoOpSpeechToText,
 ) : ViewModel() {
 
     val uiState: StateFlow<DashboardUiState> = combine(
         orchestrator.threatState,
         fusionEngine.currentConfidence,
         gemma.isReady,
-        gemma.backend,
         modelManager.status,
-    ) { level, confidence, ready, backend, model ->
+        spamDetection.latestResult,
+    ) { level, confidence, ready, model, spam ->
         DashboardUiState(
             threatLevel = level,
             confidence = confidence,
             modelReady = ready,
-            backend = backend,
+            backend = gemma.backend.value,
             downloadProgress = model.progress,
             isDownloading = model.isDownloading,
             statusLine = statusLineFor(level, ready),
+            spamResult = spam,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
@@ -63,10 +67,21 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch { gemma.prepare() }
     }
 
-    /** Demo: push a fake inbound message through the full pipeline. */
+    /**
+     * Demo: inject a fake inbound message into [MessageExtractor], which both the
+     * spam-detection pipeline and the orchestrator's NotificationMessageSource
+     * observe — so one tap exercises the full real pipeline end-to-end.
+     */
     fun simulateMessage(text: String) {
         if (text.isBlank()) return
-        demoStt.emit(text)
+        MessageExtractor.onMessageReceived(
+            MessageData(
+                sender = "Demo Sender",
+                content = text,
+                packageName = "com.rakshak.demo",
+                timestamp = System.currentTimeMillis(),
+            ),
+        )
     }
 
     private fun statusLineFor(level: ThreatLevel, ready: Boolean): String = when {

@@ -39,6 +39,8 @@ class GemmaEngineClient @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
     private val mutex = Mutex()
+    // Serializes generateOnce() calls — one engine can't run overlapping conversations.
+    private val generationMutex = Mutex()
     private var engine: Engine? = null
 
     private val _isReady = MutableStateFlow(false)
@@ -66,16 +68,21 @@ class GemmaEngineClient @Inject constructor(
      * "typing" effect. Throws if the engine is not initialized.
      */
     fun generateOnce(prompt: String, systemInstruction: String?): Flow<String> = flow {
-        val activeEngine = engine ?: throw IllegalStateException("Gemma engine not ready.")
-        val conversation = activeEngine.createConversation(configFor(systemInstruction))
-        try {
-            val acc = StringBuilder()
-            conversation.sendMessageAsync(prompt).collect { chunk ->
-                acc.append(chunk.toString())
-                emit(clean(acc.toString()))
+        // The underlying engine is single-instance; serialize concurrent requests
+        // (e.g. the orchestrator and the spam-detection pipeline hitting it for the
+        // same message) so conversations don't overlap on one engine.
+        generationMutex.withLock {
+            val activeEngine = engine ?: throw IllegalStateException("Gemma engine not ready.")
+            val conversation = activeEngine.createConversation(configFor(systemInstruction))
+            try {
+                val acc = StringBuilder()
+                conversation.sendMessageAsync(prompt).collect { chunk ->
+                    acc.append(chunk.toString())
+                    emit(clean(acc.toString()))
+                }
+            } finally {
+                conversation.close()
             }
-        } finally {
-            conversation.close()
         }
     }.flowOn(Dispatchers.IO)
 

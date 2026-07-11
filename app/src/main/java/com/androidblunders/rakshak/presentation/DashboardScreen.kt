@@ -65,6 +65,8 @@ fun DashboardScreen(
 
         ThreatBanner(state)
 
+        state.spamResult?.let { SpamResultCard(it) }
+
         Card(
             colors = CardDefaults.cardColors(),
             shape = RoundedCornerShape(16.dp),
@@ -131,6 +133,32 @@ private fun ThreatBanner(state: DashboardUiState) {
             Text(
                 "Confidence ${(state.confidence * 100).toInt()}%",
                 color = Color.White.copy(alpha = 0.9f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SpamResultCard(result: com.androidblunders.rakshak.spam_detection.SpamDetectionResult) {
+    val score = result.score.score
+    val accent = when {
+        score >= 0.80f -> AlertRed
+        score >= 0.60f -> AlertRed.copy(alpha = 0.75f)
+        score >= 0.35f -> Color(0xFFD96C00)
+        else -> SafetyGreen
+    }
+    Card(
+        colors = CardDefaults.cardColors(),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Latest spam analysis (Gemma)", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text("From ${result.sender}", color = GuardianBlue, fontWeight = FontWeight.SemiBold)
+            Text("\"${result.messageBody.take(120)}\"", fontSize = 14.sp)
+            Text(
+                "${result.status}  ·  ${result.score.label}  ·  ${(score * 100).toInt()}%",
+                color = accent, fontWeight = FontWeight.Bold, fontSize = 16.sp,
             )
         }
     }

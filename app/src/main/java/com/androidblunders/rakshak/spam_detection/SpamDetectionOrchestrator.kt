@@ -6,12 +6,24 @@ import com.androidblunders.rakshak.messaging.MessageExtractor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** UI-facing result of a single analyzed message. */
+data class SpamDetectionResult(
+    val sender: String,
+    val messageBody: String,
+    val score: ThreatScore,
+    val status: String,
+    val timestamp: Long,
+)
 
 /**
  * SpamDetectionOrchestrator — the pipeline entry-point.
@@ -42,6 +54,8 @@ class SpamDetectionOrchestrator @Inject constructor(
         private const val THRESHOLD_SUSPICIOUS = 0.35f
         private const val THRESHOLD_WARN       = 0.60f
         private const val THRESHOLD_ALERT      = 0.80f
+
+        private const val MAX_RECENT = 25
     }
 
     /**
@@ -50,6 +64,14 @@ class SpamDetectionOrchestrator @Inject constructor(
      * not cancel the entire pipeline.
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Latest analyzed message result. Observed by the dashboard / debug UI. */
+    private val _latestResult = MutableStateFlow<SpamDetectionResult?>(null)
+    val latestResult: StateFlow<SpamDetectionResult?> = _latestResult.asStateFlow()
+
+    /** Rolling log of recent results (newest first), capped for memory. */
+    private val _recentResults = MutableStateFlow<List<SpamDetectionResult>>(emptyList())
+    val recentResults: StateFlow<List<SpamDetectionResult>> = _recentResults.asStateFlow()
 
     /**
      * Begins observing [MessageExtractor.messageFlow].
@@ -101,6 +123,17 @@ class SpamDetectionOrchestrator @Inject constructor(
             score.score >= THRESHOLD_SUSPICIOUS -> "🟡 SUSPICIOUS"
             else                                -> "✅ SAFE"
         }
+
+        // Publish to observers (UI) in addition to logging.
+        val result = SpamDetectionResult(
+            sender = ctx.sender,
+            messageBody = ctx.messageBody,
+            score = score,
+            status = level,
+            timestamp = ctx.timestamp,
+        )
+        _latestResult.value = result
+        _recentResults.value = (listOf(result) + _recentResults.value).take(MAX_RECENT)
 
         Log.i(
             TAG, """
