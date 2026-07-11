@@ -37,7 +37,7 @@ data class ModelDownloadStatus(
  */
 @Singleton
 class GemmaModelManager @Inject constructor(
-    @param:ApplicationContext context: Context,
+    @ApplicationContext context: Context,
     private val httpClient: OkHttpClient,
 ) {
     private val modelDir = File(context.filesDir, "models").also { it.mkdirs() }
@@ -53,7 +53,8 @@ class GemmaModelManager @Inject constructor(
     )
     val status: StateFlow<ModelDownloadStatus> = _status.asStateFlow()
 
-    fun isModelAvailable(): Boolean = modelFile.exists() && modelFile.length() > 0L
+    fun isModelAvailable(): Boolean =
+        modelFile.exists() && modelFile.length() >= MIN_VALID_BYTES
 
     fun getModelPath(): String = modelFile.absolutePath
 

@@ -51,6 +51,13 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## API Endpoints for Android Integration
 
+Set the Android backend URL in the repository's git-ignored `local.properties`:
+
+```properties
+# Emulator host loopback; use wss://your-host for a remote/physical-device demo.
+VOICE_WS_BASE="ws://10.0.2.2:8000"
+```
+
 ### WebSocket Endpoints
 
 #### 1. Live Call Monitoring

@@ -1,5 +1,6 @@
 import re
 import logging
+import asyncio
 from typing import Dict, List, Tuple
 from google import genai
 from google.genai import types
@@ -130,13 +131,14 @@ class ThreatClassifier:
                   "extortion_indicators": ["list of indicators detected e.g. 'threat of SIM block', 'CBI authority claim', 'isolation instructions'"]
                 }}
                 """
-                response = self.client.models.generate_content(
+                response = await asyncio.to_thread(
+                    self.client.models.generate_content,
                     model=settings.model_reasoning,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
-                        temperature=0.1
-                    )
+                        temperature=0.1,
+                    ),
                 )
                 import json
                 result = json.loads(response.text)

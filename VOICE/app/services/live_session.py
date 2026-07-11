@@ -31,6 +31,7 @@ class GeminiLiveService:
 
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],  # Models like gemini-3.1-flash-live-preview require AUDIO modality
+            input_audio_transcription=types.AudioTranscriptionConfig(),
             system_instruction=types.Content(
                 parts=[types.Part(text=system_instruction)]
             ) if system_instruction else None

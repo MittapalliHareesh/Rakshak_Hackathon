@@ -2,7 +2,6 @@ package com.androidblunders.rakshak.spam_detection
 
 import android.util.Log
 import com.androidblunders.rakshak.core.contract.TextGenerator
-import java.util.LinkedList
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,9 +27,6 @@ class GemmaAnalyzer @Inject constructor(
     private val textGenerator: TextGenerator,
 ) : ThreatAnalyzer {
 
-    // Rolling window of the last MAX_TURNS message turns ("sender: content").
-    private val conversationWindow = LinkedList<String>()
-
     override suspend fun analyze(context: CallContext): ThreatScore {
         // Kick off model preparation lazily; return neutral until it's ready.
         if (!textGenerator.isReady.value) {
@@ -49,9 +45,6 @@ class GemmaAnalyzer @Inject constructor(
         Log.d(TAG, "Sending prompt to Gemma for caller=${context.callerNumber}")
 
         val result = textGenerator.generate(prompt = prompt, systemInstruction = SYSTEM_PROMPT)
-        val turnText = context.fullTranscriptText.ifBlank { context.allSmsText }
-        if (turnText.isNotBlank()) addToConversationWindow(turnText)
-
         return result.fold(
             onSuccess = { raw ->
                 Log.d(TAG, "Gemma raw response: $raw")
@@ -65,12 +58,8 @@ class GemmaAnalyzer @Inject constructor(
         )
     }
 
-    /** Builds the full user prompt: rolling window + the new message context. */
+    /** Builds the prompt only from the caller-specific rolling context. */
     private fun buildPrompt(ctx: CallContext): String {
-        val windowText =
-            if (conversationWindow.isEmpty()) "(no prior context)"
-            else conversationWindow.joinToString("\n")
-
         return buildString {
             append("Caller: ${ctx.callerNumber} (known=${ctx.isKnownContact})\n")
             if (ctx.recentSmsMessages.isNotEmpty()) {
@@ -84,12 +73,8 @@ class GemmaAnalyzer @Inject constructor(
                 }
             }
             append("Conversation context (oldest first):\n")
-            append(windowText)
+            append(ctx.fullTranscriptText.ifBlank { "(no call transcript)" })
         }
-    }
-    private fun addToConversationWindow(turn: String) {
-        if (conversationWindow.size >= MAX_TURNS) conversationWindow.removeFirst()
-        conversationWindow.addLast(turn)
     }
 
     /** Parses the model's JSON response into a [ThreatScore]; neutral on failure. */
@@ -123,7 +108,7 @@ class GemmaAnalyzer @Inject constructor(
                 .getOrDefault(ConversationStage.UNKNOWN)
 
             ThreatScore(
-                score      = Math.max(score.coerceIn(0f, 1f), 0.95f),
+                score      = score.coerceIn(0f, 1f),
                 label      = label,
                 confidence = confidence.coerceIn(0f, 1f),
                 signals    = signals,
@@ -138,8 +123,6 @@ class GemmaAnalyzer @Inject constructor(
 
     private companion object {
         const val TAG = "GemmaAnalyzer"
-        const val MAX_TURNS = 10
-
         /**
          * System instruction: forces a strict JSON reply we can parse deterministically.
          * Passed to [TextGenerator.generate] as the systemInstruction.

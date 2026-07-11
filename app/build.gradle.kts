@@ -26,9 +26,12 @@ android {
 
         // 2. Fetch the key safely or use empty fallback string
         val apiKey = properties.getProperty("GEMINI_API_KEY") ?: "\"\""
+        val voiceWsBase = properties.getProperty("VOICE_WS_BASE")
+            ?: "\"ws://10.0.2.2:8000\""
 
         // 3. Inject it into BuildConfig
         buildConfigField("String", "GEMINI_API_KEY", apiKey)
+        buildConfigField("String", "VOICE_WS_BASE", voiceWsBase)
 
         applicationId = "com.androidblunders.rakshak"
         minSdk = 31

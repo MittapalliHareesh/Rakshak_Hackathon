@@ -43,7 +43,55 @@ async def ws_call_endpoint(websocket: WebSocket, call_id: str):
             })
             
             # Queue to coordinate client data to Gemini
-            client_to_gemini_queue = asyncio.Queue()
+            client_to_gemini_queue = asyncio.Queue(maxsize=100)
+            analysis_lock = asyncio.Lock()
+
+            async def analyze_and_send(text_chunk: str):
+                """Run one transcript chunk through translation, scoring, and WS output."""
+                if not text_chunk.strip():
+                    return
+                async with analysis_lock:
+                    logger.info(f"[{call_id}] Live Transcript chunk: {text_chunk}")
+                    translated_chunk, detected_lang = await translation_service.translate_text(text_chunk)
+                    await call_state.add_transcript(text_chunk, translated_chunk)
+
+                    full_translated = call_state.get_full_translated_transcript()
+                    new_state, score, segments = await threat_classifier.classify_transcript(full_translated)
+
+                    state_changed = new_state != call_state.state
+                    await call_state.update_state(new_state, score, segments)
+                    if state_changed:
+                        audio_warning_b64 = ""
+                        if new_state == "THREAT_DETECTED":
+                            warning_text = (
+                                "Warning! This call is identified as a digital arrest "
+                                "extortion scam. Hang up immediately."
+                            )
+                            if detected_lang and detected_lang.lower() == "hindi":
+                                warning_text = (
+                                    "सावधान! यह कॉल एक डिजिटल अरेस्ट घोटाला है। "
+                                    "कृपया तुरंत फोन काट दें।"
+                                )
+                            audio_warning_b64 = await tts_service.generate_warning_speech_base64(
+                                warning_text
+                            )
+
+                        await websocket.send_json({
+                            "event": "state_changed",
+                            "state": new_state,
+                            "threat_score": score,
+                            "matched_keywords": [s["reason"] for s in segments],
+                            "warning_audio": audio_warning_b64,
+                            "transcript_chunk": text_chunk,
+                        })
+                    else:
+                        await websocket.send_json({
+                            "event": "transcript_update",
+                            "transcript_chunk": text_chunk,
+                            "full_transcript": call_state.get_full_transcript(),
+                            "threat_score": score,
+                            "state": call_state.state,
+                        })
             
             async def read_from_client():
                 try:
@@ -58,9 +106,9 @@ async def ws_call_endpoint(websocket: WebSocket, call_id: str):
                                 if text_data.get("command") == "stop":
                                     logger.info(f"Stop command received from client for call: {call_id}")
                                     break
-                            except Exception:
-                                # Standard string text can also be forwarded as text input to Gemini
-                                await session.send_realtime_input(text=message["text"])
+                            except json.JSONDecodeError:
+                                # Text transcript mode is useful for tests and non-audio clients.
+                                await analyze_and_send(message["text"])
                 except WebSocketDisconnect:
                     logger.info(f"Client disconnected for call: {call_id}")
                 except Exception as e:
@@ -87,76 +135,45 @@ async def ws_call_endpoint(websocket: WebSocket, call_id: str):
 
             async def read_from_gemini():
                 try:
-                    async for response in session.receive():
-                        text_chunk = ""
+                    while True:
+                        async for response in session.receive():
+                            text_chunk = ""
                         
-                        # Check for text in model output
-                        if response.server_content and response.server_content.model_turn:
-                            for part in response.server_content.model_turn.parts:
-                                if part.text:
-                                    text_chunk += part.text
+                            # Check for text in model output
+                            if response.server_content and response.server_content.model_turn:
+                                for part in response.server_content.model_turn.parts:
+                                    if part.text:
+                                        text_chunk += part.text
                                     
-                        # Check for server-side automatic input transcription
-                        elif response.server_content and hasattr(response.server_content, 'input_transcription') and response.server_content.input_transcription:
-                            if response.server_content.input_transcription.text:
+                            # Check for server-side automatic input transcription
+                            if (
+                                response.server_content
+                                and response.server_content.input_transcription
+                                and response.server_content.input_transcription.text
+                            ):
                                 text_chunk += response.server_content.input_transcription.text
                                 
-                        if text_chunk:
-                            logger.info(f"[{call_id}] Live Transcript chunk: {text_chunk}")
-                            
-                            # Normalize text to English for extortion classification
-                            translated_chunk, detected_lang = await translation_service.translate_text(text_chunk)
-                            await call_state.add_transcript(text_chunk, translated_chunk)
-                            
-                            # Analyze rolling buffer
-                            full_translated = call_state.get_full_translated_transcript()
-                            new_state, score, segments = await threat_classifier.classify_transcript(full_translated)
-                            
-                            if new_state != call_state.state:
-                                await call_state.update_state(new_state, score, segments)
-                                
-                                # If threat is detected, generate warning speech
-                                audio_warning_b64 = ""
-                                if new_state == "THREAT_DETECTED":
-                                    warning_text = "Warning! This call is identified as a digital arrest extortion scam. Hang up immediately."
-                                    if detected_lang and detected_lang.lower() == "hindi":
-                                        warning_text = "सावधान! यह कॉल एक डिजिटल अरेस्ट घोटाला है। कृपया तुरंत फोन काट दें।"
-                                    
-                                    # Generate speech voice in the target language
-                                    audio_warning_b64 = await tts_service.generate_warning_speech_base64(warning_text)
-                                    
-                                await websocket.send_json({
-                                    "event": "state_changed",
-                                    "state": new_state,
-                                    "threat_score": score,
-                                    "matched_keywords": [s["reason"] for s in segments],
-                                    "warning_audio": audio_warning_b64,
-                                    "transcript_chunk": text_chunk
-                                })
-                            else:
-                                await websocket.send_json({
-                                    "event": "transcript_update",
-                                    "transcript_chunk": text_chunk,
-                                    "full_transcript": call_state.get_full_transcript(),
-                                    "threat_score": score,
-                                    "state": call_state.state
-                                })
+                            if text_chunk:
+                                await analyze_and_send(text_chunk)
                 except Exception as e:
                     logger.error(f"Error receiving from Gemini: {e}")
 
-            # Run client reader, gemini sender, and gemini reader concurrently
-            await asyncio.gather(
-                read_from_client(),
-                send_to_gemini(),
-                read_from_gemini()
-            )
+            tasks = {
+                asyncio.create_task(read_from_client()),
+                asyncio.create_task(send_to_gemini()),
+                asyncio.create_task(read_from_gemini()),
+            }
+            _, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
             
     except Exception as e:
         logger.error(f"Failed to connect to Live API session for {call_id}: {e}")
         try:
             await websocket.send_json({
                 "event": "error",
-                "message": f"Failed to connect to Live API session: {str(e)}"
+                "message": "The live transcription service is temporarily unavailable."
             })
         except Exception:
             pass

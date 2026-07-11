@@ -2,9 +2,7 @@ package com.androidblunders.rakshak.messaging
 
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 
 data class MessageData(
     val sender: String,
@@ -14,17 +12,27 @@ data class MessageData(
 )
 
 object MessageExtractor {
-    private val _messageFlow = MutableSharedFlow<MessageData>(extraBufferCapacity = 10)
+    private val _messageFlow = MutableSharedFlow<MessageData>(
+        extraBufferCapacity = 25,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
     val messageFlow = _messageFlow.asSharedFlow()
 
     // Internal cache for the last 25 messages
     private val messageHistory = java.util.Collections.synchronizedList(mutableListOf<MessageData>())
 
     internal fun onMessageReceived(data: MessageData) {
-        messageHistory.add(0, data)
-        // Keep only the last 25
-        if (messageHistory.size > 25) {
-            messageHistory.removeAt(messageHistory.size - 1)
+        if (data.content.isBlank()) return
+        synchronized(messageHistory) {
+            val duplicate = messageHistory.any { previous ->
+                previous.content == data.content &&
+                    kotlin.math.abs(previous.timestamp - data.timestamp) < DUPLICATE_WINDOW_MS
+            }
+            if (duplicate) return
+            messageHistory.add(0, data)
+            while (messageHistory.size > MAX_HISTORY) {
+                messageHistory.removeAt(messageHistory.lastIndex)
+            }
         }
         _messageFlow.tryEmit(data)
     }
@@ -33,7 +41,7 @@ object MessageExtractor {
      * Returns the last 25 captured messages.
      */
     fun getLast25Messages(): List<MessageData> {
-        return messageHistory.toList()
+        return synchronized(messageHistory) { messageHistory.toList() }
     }
 
     /**
@@ -46,17 +54,6 @@ object MessageExtractor {
             "enabled_notification_listeners"
         )
         return flat?.contains(packageName) == true
-    }
-
-    /**
-     * Call this to register a simple callback for message updates.
-     */
-    fun registerListener(onMessage: (MessageData) -> Unit) {
-        // In a real app, you'd want to handle lifecycle and multiple listeners
-        // For this utility, we'll just use a CoroutineScope to bridge Flow to callback
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-            messageFlow.collect { onMessage(it) }
-        }
     }
 
     /**
@@ -81,4 +78,7 @@ object MessageExtractor {
         }
         return false
     }
+
+    private const val MAX_HISTORY = 25
+    private const val DUPLICATE_WINDOW_MS = 2_000L
 }

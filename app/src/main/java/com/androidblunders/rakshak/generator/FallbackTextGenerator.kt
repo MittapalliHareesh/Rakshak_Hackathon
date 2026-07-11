@@ -29,29 +29,40 @@ class FallbackTextGenerator @Inject constructor(
     private val _backend = MutableStateFlow("Initializing...")
     override val backend: StateFlow<String> = _backend.asStateFlow()
 
-    private val activeGenerator: TextGenerator
-        get() = if (modelManager.isModelAvailable()) gemmaGenerator else geminiGenerator
-
     override suspend fun prepare(): Result<Unit> {
-        val result = if (modelManager.isModelAvailable()) {
+        if (modelManager.isModelAvailable()) {
             _backend.value = "Local (Gemma 4 LiteRT)"
-            gemmaGenerator.prepare()
-        } else {
-            _backend.value = "Cloud (Gemini 2.5 Flash API)"
-            geminiGenerator.prepare()
+            val localResult = gemmaGenerator.prepare()
+            if (localResult.isSuccess) {
+                _isReady.value = true
+                return localResult
+            }
         }
-        
-        if (result.isSuccess) {
-            _isReady.value = true
-        }
-        return result
+
+        _backend.value = "Cloud (Gemini 2.5 Flash API)"
+        val cloudResult = geminiGenerator.prepare()
+        _isReady.value = cloudResult.isSuccess
+        return cloudResult
     }
 
     override suspend fun generate(prompt: String, systemInstruction: String?): Result<String> {
-        return activeGenerator.generate(prompt, systemInstruction)
+        if (gemmaGenerator.isReady.value) {
+            val localResult = gemmaGenerator.generate(prompt, systemInstruction)
+            if (localResult.isSuccess) return localResult
+        }
+
+        _backend.value = "Cloud (Gemini 2.5 Flash API)"
+        val ready = geminiGenerator.prepare()
+        if (ready.isFailure) return Result.failure(ready.exceptionOrNull()!!)
+        _isReady.value = true
+        return geminiGenerator.generate(prompt, systemInstruction)
     }
 
     override fun generateStream(prompt: String, systemInstruction: String?): Flow<String> {
-        return activeGenerator.generateStream(prompt, systemInstruction)
+        return if (gemmaGenerator.isReady.value) {
+            gemmaGenerator.generateStream(prompt, systemInstruction)
+        } else {
+            geminiGenerator.generateStream(prompt, systemInstruction)
+        }
     }
 }

@@ -1,5 +1,6 @@
 import logging
 import base64
+import asyncio
 from google import genai
 from google.genai import types
 from app.config import settings
@@ -46,10 +47,11 @@ class TTSService:
 
                     prompt = f"""Speak the following warning message exactly: "{text}" """
 
-                    response = self.client.models.generate_content(
-                        model=settings.model_reasoning,
+                    response = await asyncio.to_thread(
+                        self.client.models.generate_content,
+                        model=settings.model_tts,
                         contents=prompt,
-                        config=config
+                        config=config,
                     )
 
                     logger.info(f"TTS audio_response - got response with {len(response.candidates) if response.candidates else 0} candidates")
@@ -68,10 +70,11 @@ class TTSService:
                     
                     If you can generate audio, include it as inline data. Otherwise, just respond with the text exactly as written."""
                     
-                    response = self.client.models.generate_content(
-                        model=settings.model_reasoning,
+                    response = await asyncio.to_thread(
+                        self.client.models.generate_content,
+                        model=settings.model_tts,
                         contents=prompt,
-                        config=types.GenerateContentConfig(temperature=0.1)
+                        config=types.GenerateContentConfig(temperature=0.1),
                     )
 
                     logger.info(f"TTS text_with_audio - got response")

@@ -38,6 +38,9 @@ object CallStreamStatus {
     private val _serverState = MutableStateFlow("MONITORING")
     val serverState: StateFlow<String> = _serverState.asStateFlow()
 
+    private val _lastError = MutableStateFlow<String?>(null)
+    val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
     fun setActive(active: Boolean) { _active.value = active }
     fun setConnection(c: Connection) { _connection.value = c }
     fun addSent(bytes: Int) { _bytesSent.update { it + bytes } }
@@ -45,6 +48,7 @@ object CallStreamStatus {
     fun setTranscript(text: String) { _transcript.value = text }
     fun setServerThreat(score: Float) { _serverThreat.value = score }
     fun setServerState(state: String) { _serverState.value = state }
+    fun setError(message: String?) { _lastError.value = message }
 
     fun reset() {
         _connection.value = Connection.IDLE
@@ -53,5 +57,6 @@ object CallStreamStatus {
         _transcript.value = ""
         _serverThreat.value = 0f
         _serverState.value = "MONITORING"
+        _lastError.value = null
     }
 }

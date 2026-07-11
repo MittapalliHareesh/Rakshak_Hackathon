@@ -53,6 +53,7 @@ class STTService:
         
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],  # Use AUDIO modality as supported by live model
+            input_audio_transcription=types.AudioTranscriptionConfig(),
             system_instruction=types.Content(
                 parts=[types.Part(text=instruction)]
             )
@@ -75,12 +76,12 @@ class STTService:
             f"only transcribe the speech in the language it is spoken."
         )
         
-        transcription = ""
+        chunks: list[str] = []
         
         try:
             async with self.connect(language=language, system_instruction=system_instruction) as session:
                 # Start consumer task to receive transcriptions
-                receive_task = asyncio.create_task(self._receive_transcriptions(session, transcription))
+                receive_task = asyncio.create_task(self._receive_transcriptions(session, chunks))
                 
                 # Feed audio chunks
                 async for audio_chunk in audio_stream:
@@ -98,26 +99,31 @@ class STTService:
                 except asyncio.CancelledError:
                     pass
                 
-                return transcription
+                return " ".join(chunks).strip()
         except Exception as e:
             logger.error(f"Error in STT transcription: {e}")
             return ""
     
-    async def _receive_transcriptions(self, session, transcription: str):
+    async def _receive_transcriptions(self, session, chunks: list[str]):
         """
         Helper to receive transcription chunks from Gemini Live API.
         """
         try:
-            async for response in session.receive():
-                if response.server_content and response.server_content.model_turn:
-                    for part in response.server_content.model_turn.parts:
-                        if part.text:
-                            transcription += part.text + " "
-                            logger.info(f"STT Transcription: {part.text}")
-                elif response.server_content and hasattr(response.server_content, 'input_transcription') and response.server_content.input_transcription:
-                    if response.server_content.input_transcription.text:
-                        transcription += response.server_content.input_transcription.text + " "
-                        logger.info(f"STT Input Transcription: {response.server_content.input_transcription.text}")
+            while True:
+                async for response in session.receive():
+                    if response.server_content and response.server_content.model_turn:
+                        for part in response.server_content.model_turn.parts:
+                            if part.text:
+                                chunks.append(part.text)
+                                logger.info(f"STT Transcription: {part.text}")
+                    if (
+                        response.server_content
+                        and response.server_content.input_transcription
+                        and response.server_content.input_transcription.text
+                    ):
+                        text = response.server_content.input_transcription.text
+                        chunks.append(text)
+                        logger.info(f"STT Input Transcription: {text}")
         except asyncio.CancelledError:
             pass
         except Exception as e:

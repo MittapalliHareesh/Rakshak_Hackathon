@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from google import genai
 from google.genai import types
 from app.config import settings
@@ -45,13 +46,14 @@ class TranslationService:
                 Text to translate:
                 "{text}"
                 """
-                response = self.client.models.generate_content(
+                response = await asyncio.to_thread(
+                    self.client.models.generate_content,
                     model=model_name,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
-                        temperature=0.1
-                    )
+                        temperature=0.1,
+                    ),
                 )
                 import json
                 result = json.loads(response.text)

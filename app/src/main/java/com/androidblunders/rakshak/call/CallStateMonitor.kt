@@ -44,10 +44,12 @@ class CallStateMonitor @Inject constructor(
         val cb = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
             override fun onCallStateChanged(state: Int) = onState(state)
         }
-        callback = cb
         runCatching { tm.registerTelephonyCallback(context.mainExecutor, cb) }
+            .onSuccess {
+                callback = cb
+                Log.i(TAG, "Call-state monitor active.")
+            }
             .onFailure { Log.e(TAG, "registerTelephonyCallback failed", it) }
-        Log.i(TAG, "Call-state monitor active.")
     }
 
     fun stop() {

@@ -24,6 +24,7 @@ data class DashboardUiState(
     val threatLevel: ThreatLevel = ThreatLevel.IDLE,
     val confidence: Float = 0f,
     val modelReady: Boolean = false,
+    val localModelAvailable: Boolean = false,
     val backend: String = "CPU",
     val downloadProgress: Float = 0f,
     val isDownloading: Boolean = false,
@@ -59,6 +60,7 @@ class DashboardViewModel @Inject constructor(
             threatLevel = level,
             confidence = confidence,
             modelReady = ready,
+            localModelAvailable = model.isModelAvailable,
             backend = textGenerator.backend.value,
             downloadProgress = model.progress,
             isDownloading = model.isDownloading,
@@ -70,6 +72,10 @@ class DashboardViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
+    init {
+        prepareModel()
+    }
+
     /**
      * Prepare the text generator. If Gemma weights are already downloaded it uses
      * the local engine; otherwise it's instantly ready via the Gemini API.
@@ -80,7 +86,11 @@ class DashboardViewModel @Inject constructor(
 
     /** Optional: download the ~2.7 GB Gemma weights for fully-offline operation. */
     fun downloadGemma() {
-        viewModelScope.launch { modelManager.downloadModel() }
+        viewModelScope.launch {
+            if (modelManager.downloadModel().isSuccess) {
+                textGenerator.prepare()
+            }
+        }
     }
 
     /**
@@ -109,7 +119,7 @@ class DashboardViewModel @Inject constructor(
     }
 
     private fun statusLineFor(level: ThreatLevel, ready: Boolean): String = when {
-        !ready -> "Offline model not loaded — tap Load Gemma"
+        !ready -> "AI engine unavailable — check model or API configuration"
         level == ThreatLevel.IDLE -> "Monitoring active"
         else -> "Threat detected: $level"
     }

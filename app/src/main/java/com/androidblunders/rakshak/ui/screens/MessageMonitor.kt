@@ -1,5 +1,7 @@
 package com.androidblunders.rakshak.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,12 +27,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.core.content.ContextCompat
 import com.androidblunders.rakshak.messaging.MessageData
 import com.androidblunders.rakshak.messaging.MessageExtractor
 import java.util.Date
@@ -48,6 +51,12 @@ import kotlinx.coroutines.flow.collectLatest
 fun MessageMonitorSection(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var isPermissionGranted by remember { mutableStateOf(MessageExtractor.isPermissionGranted(context)) }
+    var isSmsPermissionGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) ==
+                PackageManager.PERMISSION_GRANTED,
+        )
+    }
     val messages = remember { mutableStateListOf<MessageData>() }
 
     // Backfill any already-captured history (SMS + notifications) on first show.
@@ -61,6 +70,7 @@ fun MessageMonitorSection(modifier: Modifier = Modifier) {
         MessageExtractor.messageFlow.collectLatest { message ->
             if (!messages.contains(message)) {
                 messages.add(0, message)
+                while (messages.size > 25) messages.removeAt(messages.lastIndex)
             }
         }
     }
@@ -71,6 +81,9 @@ fun MessageMonitorSection(modifier: Modifier = Modifier) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isPermissionGranted = MessageExtractor.isPermissionGranted(context)
+                isSmsPermissionGranted =
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) ==
+                    PackageManager.PERMISSION_GRANTED
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -83,9 +96,19 @@ fun MessageMonitorSection(modifier: Modifier = Modifier) {
 
             // SMS is read directly via the SMS receiver (RECEIVE_SMS). Notification
             // access is only needed to ALSO monitor WhatsApp / chat apps.
+            if (!isSmsPermissionGranted) {
+                Text(
+                    "SMS permission is off, so real incoming texts cannot be captured. " +
+                        "Enable SMS permission in the app settings.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp,
+                )
+            }
+
             if (!isPermissionGranted) {
                 Text(
-                    "SMS is monitored directly. Enable notification access to also scan " +
+                    (if (isSmsPermissionGranted) "SMS is monitored directly. " else "") +
+                        "Enable notification access to also scan " +
                         "WhatsApp & other chat apps.",
                     fontSize = 13.sp,
                 )

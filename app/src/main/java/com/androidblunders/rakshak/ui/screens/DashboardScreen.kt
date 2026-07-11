@@ -1,5 +1,8 @@
 package com.androidblunders.rakshak.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,13 +36,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.androidblunders.rakshak.core.model.ThreatLevel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.androidblunders.rakshak.audio.CallTranscriber
-import com.androidblunders.rakshak.presentation.*
-
-import androidx.compose.runtime.LaunchedEffect
-import kotlinx.coroutines.delay
+import com.androidblunders.rakshak.call.CallStreamStatus
+import com.androidblunders.rakshak.core.model.ThreatLevel
 
 // "Vigilant Guardian" palette, kept local so this demo screen stays decoupled
 // from the app's evolving ui.theme module.
@@ -72,7 +73,7 @@ fun DashboardScreen(
 
         ThreatBanner(state)
 
-        AudioStreamMonitorSection()
+        CallProtectionSection()
         
         state.spamResult?.let { result ->
             SpamResultCard(
@@ -87,10 +88,18 @@ fun DashboardScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("On-device Gemma", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("AI detection engine", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text(
-                    if (state.modelReady) "Ready · ${state.backend}" else "Not loaded",
+                    if (state.modelReady) "Active · ${state.backend}" else "Unavailable",
                     color = if (state.modelReady) SafetyGreen else AlertRed,
+                )
+                Text(
+                    if (state.localModelAvailable) {
+                        "Local Gemma weights are available for offline analysis."
+                    } else {
+                        "Using Gemini online fallback. Download Gemma for offline protection."
+                    },
+                    fontSize = 14.sp,
                 )
                 if (state.isDownloading) {
                     LinearProgressIndicator(
@@ -106,9 +115,21 @@ fun DashboardScreen(
                     Text("⚠️ $it", color = AlertRed, fontSize = 14.sp)
                 }
                 OutlinedButton(
-                    onClick = viewModel::prepareModel,
+                    onClick = {
+                        if (state.localModelAvailable) viewModel.prepareModel()
+                        else viewModel.downloadGemma()
+                    },
+                    enabled = !state.isDownloading,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                ) { Text(if (state.isDownloading) "Downloading…" else "Load Gemma") }
+                ) {
+                    Text(
+                        when {
+                            state.isDownloading -> "Downloading Gemma…"
+                            state.localModelAvailable -> "Initialize local Gemma"
+                            else -> "Download Gemma (~2.7 GB)"
+                        },
+                    )
+                }
             }
         }
 
@@ -129,8 +150,6 @@ fun DashboardScreen(
             modifier = Modifier.fillMaxWidth().height(56.dp),
         ) { Text("Analyze as live call speech (STT path)") }
 
-        LiveCallSection()
-
         Spacer(Modifier.height(4.dp))
         // Live notification/SMS capture + permission gate. Every message shown here
         // is also fed through the spam-detection pipeline.
@@ -139,39 +158,21 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun LiveCallSection() {
+private fun CallProtectionSection() {
     val context = LocalContext.current
-    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Live call protection", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text(
-                "Starts a foreground mic recorder (16kHz PCM) that feeds the STT " +
-                    "module. Requires microphone permission.",
-                fontSize = 14.sp,
-            )
-            Button(
-                onClick = { com.androidblunders.rakshak.audio.CallTranscriber.startTranscription(context) },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-            ) { Text("Start live call protection") }
-            OutlinedButton(
-                onClick = { com.androidblunders.rakshak.audio.CallTranscriber.stopTranscription(context) },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-            ) { Text("Stop") }
-        }
-    }
-}
-
-@Composable
-private fun AudioStreamMonitorSection() {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    var isStreaming by remember { mutableStateOf(false) }
-    var transcript by remember { mutableStateOf("") }
-
-    LaunchedEffect(isStreaming) {
-        while (isStreaming) {
-            transcript = CallTranscriber.getTranscript()
-            delay(1000)
-        }
+    val active by CallStreamStatus.active.collectAsState()
+    val connection by CallStreamStatus.connection.collectAsState()
+    val bytesSent by CallStreamStatus.bytesSent.collectAsState()
+    val bytesReceived by CallStreamStatus.bytesReceived.collectAsState()
+    val transcript by CallStreamStatus.transcript.collectAsState()
+    val serverState by CallStreamStatus.serverState.collectAsState()
+    val serverThreat by CallStreamStatus.serverThreat.collectAsState()
+    val lastError by CallStreamStatus.lastError.collectAsState()
+    val statusColor = when (connection) {
+        CallStreamStatus.Connection.CONNECTED -> SafetyGreen
+        CallStreamStatus.Connection.ERROR -> AlertRed
+        CallStreamStatus.Connection.CONNECTING -> Color(0xFFD96C00)
+        else -> GuardianBlue
     }
 
     Card(
@@ -180,26 +181,43 @@ private fun AudioStreamMonitorSection() {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Real-time Call Analysis", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text(if (isStreaming) "Streaming audio..." else "Standby", color = if (isStreaming) SafetyGreen else GuardianBlue)
-            
+            Text("Live call protection", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(
+                "Socket: ${connection.name} · Service: ${if (active) "ACTIVE" else "IDLE"}",
+                color = statusColor,
+                fontWeight = FontWeight.Bold,
+            )
+            Text("Sent ${formatBytes(bytesSent)} PCM · Received ${formatBytes(bytesReceived)} JSON/audio")
+            Text("VOICE state: $serverState · Risk ${(serverThreat * 100).toInt()}%")
+            lastError?.let { Text(it, color = AlertRed) }
+            Text(
+                "Audio is captured as 16 kHz mono PCM. On standard Android phones, " +
+                    "speakerphone may be needed to hear both sides of a cellular call.",
+                fontSize = 14.sp,
+            )
+
             Button(
                 onClick = {
-                    if (isStreaming) {
+                    if (active) {
                         CallTranscriber.stopTranscription(context)
                     } else {
-                        CallTranscriber.startTranscription(context)
+                        val granted = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.RECORD_AUDIO,
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (granted) CallTranscriber.startTranscription(context)
+                        else Toast.makeText(context, "Microphone permission is required", Toast.LENGTH_LONG).show()
                     }
-                    isStreaming = !isStreaming
                 },
-                modifier = Modifier.fillMaxWidth()
+                enabled = connection != CallStreamStatus.Connection.CONNECTING,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
             ) {
-                Text(if (isStreaming) "Stop Streaming" else "Start Analysis")
+                Text(if (active) "Stop protection" else "Start call protection")
             }
-            
+
             if (transcript.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text("Transcript:", fontWeight = FontWeight.SemiBold)
+                Text("Live transcript", fontWeight = FontWeight.SemiBold)
                 Text(transcript, fontSize = 14.sp)
             }
         }
@@ -250,7 +268,7 @@ private fun SpamResultCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Latest spam analysis (Gemma)", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text("Latest scam analysis", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text("From ${result.sender}", color = GuardianBlue, fontWeight = FontWeight.SemiBold)
             Text("\"${result.messageBody.take(120)}\"", fontSize = 14.sp)
             Text(
@@ -266,6 +284,12 @@ private fun SpamResultCard(
             }
         }
     }
+}
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
+    bytes >= 1_000 -> "%.1f KB".format(bytes / 1_000.0)
+    else -> "$bytes B"
 }
 
 private fun accentFor(level: ThreatLevel): Color = when (level) {

@@ -2,7 +2,9 @@ package com.androidblunders.rakshak
 
 import android.os.Build
 import android.os.Bundle
+import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +22,17 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var callStateMonitor: CallStateMonitor
+
+    private val corePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (grants[android.Manifest.permission.READ_PHONE_STATE] == true ||
+            checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            callStateMonitor.start()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,10 +62,11 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
         }
-        requestPermissions(permissions.toTypedArray(), REQUEST_CODE_CORE)
-    }
-
-    private companion object {
-        const val REQUEST_CODE_CORE = 101
+        val missing = permissions.filter {
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isNotEmpty()) {
+            corePermissionLauncher.launch(missing.toTypedArray())
+        }
     }
 }

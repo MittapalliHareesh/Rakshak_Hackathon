@@ -23,8 +23,12 @@ class CallState:
     async def add_transcript(self, text: str, translated: str = None):
         async with self.lock:
             self.transcript_buffer.append(text)
+            if len(self.transcript_buffer) > 200:
+                self.transcript_buffer.pop(0)
             if translated:
                 self.translated_buffer.append(translated)
+                if len(self.translated_buffer) > 200:
+                    self.translated_buffer.pop(0)
             self.last_updated = datetime.utcnow()
 
     async def update_state(self, state: str, threat_score: float, new_suspicious_segments: List[Dict[str, str]] = None):

@@ -11,9 +11,13 @@ import android.util.Log
 import com.androidblunders.rakshak.call.CallStreamStatus
 import com.androidblunders.rakshak.call.LiveTranscriptBus
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -48,7 +52,9 @@ class AudioStreamingManager(private val serverUrl: String) {
 
     private var webSocket: WebSocket? = null
     private var audioRecord: AudioRecord? = null
+    private var recordingJob: Job? = null
     @Volatile private var isRecording = false
+    private val started = AtomicBoolean(false)
 
     private val transcriptionBuilder = StringBuilder()
     private val _transcriptionState = MutableStateFlow("")
@@ -60,17 +66,27 @@ class AudioStreamingManager(private val serverUrl: String) {
     private val _callState = MutableStateFlow("MONITORING")
     val callState = _callState.asStateFlow()
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun startStreaming() {
-        if (isRecording) return
+        if (!started.compareAndSet(false, true)) return
+        CallStreamStatus.setError(null)
         CallStreamStatus.setConnection(CallStreamStatus.Connection.CONNECTING)
         val request = Request.Builder().url(serverUrl).build()
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                if (!started.get()) {
+                    webSocket.close(1000, "Cancelled")
+                    return
+                }
                 Log.d(TAG, "WebSocket open → $serverUrl")
                 CallStreamStatus.setConnection(CallStreamStatus.Connection.CONNECTED)
-                startRecording()
+                runCatching { startRecording() }
+                    .onFailure { error ->
+                        Log.e(TAG, "Audio capture failed", error)
+                        CallStreamStatus.setError(error.message ?: "Audio capture failed")
+                        cleanup(CallStreamStatus.Connection.ERROR)
+                    }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -85,13 +101,16 @@ class AudioStreamingManager(private val serverUrl: String) {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "WebSocket failure: ${t.message}")
-                CallStreamStatus.setConnection(CallStreamStatus.Connection.ERROR)
-                stopStreaming()
+                CallStreamStatus.setError(t.message ?: "WebSocket connection failed")
+                cleanup(CallStreamStatus.Connection.ERROR)
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                CallStreamStatus.setConnection(CallStreamStatus.Connection.DISCONNECTED)
                 webSocket.close(1000, null)
+            }
+
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                cleanup(CallStreamStatus.Connection.DISCONNECTED, closeSocket = false)
             }
         })
     }
@@ -132,10 +151,11 @@ class AudioStreamingManager(private val serverUrl: String) {
     /** Decode base64 PCM16 warning speech from VOICE and play it back. */
     private fun playWarningAudio(base64: String) {
         scope.launch {
+            var track: AudioTrack? = null
             try {
                 val pcm = Base64.decode(base64, Base64.DEFAULT)
                 if (pcm.isEmpty()) return@launch
-                val track = AudioTrack.Builder()
+                track = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
@@ -154,8 +174,15 @@ class AudioStreamingManager(private val serverUrl: String) {
                     .build()
                 track.write(pcm, 0, pcm.size)
                 track.play()
+                val durationMs = ((pcm.size / 2.0) / TTS_SAMPLE_RATE * 1_000).toLong()
+                delay(durationMs.coerceAtLeast(250L))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to play warning audio", e)
+            } finally {
+                track?.let { audioTrack ->
+                    runCatching { audioTrack.stop() }
+                    audioTrack.release()
+                }
             }
         }
     }
@@ -166,11 +193,12 @@ class AudioStreamingManager(private val serverUrl: String) {
         val channelConfig = AudioFormat.CHANNEL_IN_MONO
         val audioFormat = AudioFormat.ENCODING_PCM_16BIT
         val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-            .coerceAtLeast(3200)
+        check(bufferSize > 0) { "Unsupported 16 kHz PCM audio configuration" }
+        val captureBufferSize = bufferSize.coerceAtLeast(3200)
 
         val record = AudioRecord(
             MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-            sampleRate, channelConfig, audioFormat, bufferSize,
+            sampleRate, channelConfig, audioFormat, captureBufferSize,
         )
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             Log.e(TAG, "AudioRecord init failed")
@@ -179,28 +207,55 @@ class AudioStreamingManager(private val serverUrl: String) {
         }
         audioRecord = record
         record.startRecording()
+        check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+            "Microphone did not enter recording state"
+        }
         isRecording = true
 
-        scope.launch {
-            val buffer = ByteArray(bufferSize)
+        recordingJob = scope.launch {
+            val buffer = ByteArray(captureBufferSize)
             while (isRecording) {
                 val read = record.read(buffer, 0, buffer.size)
                 if (read > 0) {
                     val sent = webSocket?.send(buffer.copyOf(read).toByteString()) ?: false
                     if (sent) CallStreamStatus.addSent(read)
+                } else if (read < 0) {
+                    CallStreamStatus.setError("AudioRecord read failed ($read)")
+                    break
                 }
             }
         }
     }
 
     fun stopStreaming() {
-        isRecording = false
         runCatching { webSocket?.send("{\"command\":\"stop\"}") }
-        audioRecord?.let { runCatching { it.stop() }; it.release() }
+        cleanup(CallStreamStatus.Connection.DISCONNECTED)
+    }
+
+    fun close() {
+        stopStreaming()
+        scope.cancel()
+        client.dispatcher.executorService.shutdown()
+        client.connectionPool.evictAll()
+    }
+
+    @Synchronized
+    private fun cleanup(
+        connection: CallStreamStatus.Connection,
+        closeSocket: Boolean = true,
+    ) {
+        started.set(false)
+        isRecording = false
+        recordingJob?.cancel()
+        recordingJob = null
+        audioRecord?.let { record ->
+            runCatching { if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop() }
+            record.release()
+        }
         audioRecord = null
-        webSocket?.close(1000, "Stopped")
+        if (closeSocket) webSocket?.close(1000, "Stopped")
         webSocket = null
-        CallStreamStatus.setConnection(CallStreamStatus.Connection.DISCONNECTED)
+        CallStreamStatus.setConnection(connection)
     }
 
     fun getFullTranscription(): String = synchronized(transcriptionBuilder) {
