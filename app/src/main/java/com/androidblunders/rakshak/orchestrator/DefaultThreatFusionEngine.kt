@@ -87,6 +87,11 @@ class DefaultThreatFusionEngine @Inject constructor(
         _currentThreatLevel.value = level
     }
 
+    override fun publish(level: ThreatLevel, confidence: Float) {
+        _currentConfidence.value = confidence.coerceIn(0f, 1f)
+        _currentThreatLevel.value = level
+    }
+
     override fun reset() {
         _currentThreatLevel.value = ThreatLevel.IDLE
         _currentConfidence.value = 0f

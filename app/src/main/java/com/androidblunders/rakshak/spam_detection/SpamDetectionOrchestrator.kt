@@ -151,7 +151,12 @@ class SpamDetectionOrchestrator @Inject constructor(
         _latestResult.value = result
         _recentResults.value = (listOf(result) + _recentResults.value).take(MAX_BUFFER)
         if (result.hasTransaction) _latestTransactionResult.value = result
-        coreThreatState.override(mapToThreatLevel(effectiveScore.score))
+        // The spam pipeline owns its analyzer set, so publish both its resulting
+        // level and normalized risk score to the app-wide dashboard state.
+        coreThreatState.publish(
+            level = mapToThreatLevel(effectiveScore.score),
+            confidence = effectiveScore.score,
+        )
 
         Log.i(
             TAG,

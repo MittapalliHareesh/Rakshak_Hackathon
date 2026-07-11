@@ -52,13 +52,20 @@ object CyberPoliceReporter {
         }
 
         withContext(Dispatchers.Main) {
-            val baseIntent = Intent(Intent.ACTION_SENDTO).apply {
-                data = Uri.Builder().scheme("mailto").opaquePart(CYBER_POLICE_EMAIL).build()
+            val baseIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$CYBER_POLICE_EMAIL")).apply {
                 putExtra(Intent.EXTRA_EMAIL, arrayOf(CYBER_POLICE_EMAIL))
                 putExtra(Intent.EXTRA_SUBJECT, subject)
                 putExtra(Intent.EXTRA_TEXT, body)
             }
-            val gmailIntent = Intent(baseIntent).setPackage(GMAIL_PACKAGE)
+            // Gmail reliably reads composer fields from ACTION_SEND. ACTION_SENDTO
+            // can open Gmail with its extras discarded on some Gmail versions.
+            val gmailIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                setPackage(GMAIL_PACKAGE)
+                putExtra(Intent.EXTRA_EMAIL, arrayOf(CYBER_POLICE_EMAIL))
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                putExtra(Intent.EXTRA_TEXT, body)
+            }
             val intent = if (gmailIntent.resolveActivity(context.packageManager) != null) {
                 gmailIntent
             } else {

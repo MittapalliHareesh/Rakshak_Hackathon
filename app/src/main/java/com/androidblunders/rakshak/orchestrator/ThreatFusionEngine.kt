@@ -30,5 +30,11 @@ interface ThreatFusionEngine {
     /** Force a specific level (e.g. cheat-code -> GENTLE_GUIDANCE, or reset to IDLE). */
     fun override(level: ThreatLevel)
 
+    /**
+     * Publish a score computed by a specialised pipeline that owns its own
+     * analyzers, while keeping the dashboard and responders on this shared state.
+     */
+    fun publish(level: ThreatLevel, confidence: Float)
+
     fun reset()
 }
