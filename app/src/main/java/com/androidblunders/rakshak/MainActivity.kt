@@ -16,6 +16,22 @@ import com.androidblunders.rakshak.ui.theme.RakshakTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        //Read the future message & histroric messages.
+        // 1. registerListener: Captures FUTURE messages that arrive while the app is alive.
+    /*    MessageExtractor.registerListener { message ->
+            Log.d("RakshakPlugin", "Exposed Listener captured: ${message.content}")
+        }
+
+        // 2. getLast25Messages: Retrieves messages that were ALREADY captured in the background.
+        // Note: This will be empty if the app was just installed or the process just started.
+        val history = MessageExtractor.getLast25Messages()
+        history.forEach { message ->
+            Log.d("History", "${message.sender}: ${message.content}")
+        } */
+
+        
+        
         enableEdgeToEdge()
         setContent {
             RakshakTheme {
