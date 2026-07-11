@@ -11,35 +11,51 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.androidblunders.rakshak.ui.theme.RakshakTheme
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import com.androidblunders.rakshak.messaging.MessageData
+import com.androidblunders.rakshak.messaging.MessageExtractor
+import kotlinx.coroutines.flow.collectLatest
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import android.util.Log
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Auto-request runtime permissions for the hackathon
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val permissions = mutableListOf(
+                android.Manifest.permission.READ_SMS,
+                android.Manifest.permission.RECEIVE_SMS
+            )
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+            requestPermissions(permissions.toTypedArray(), 101)
+        }
 
-        //Read the future message & histroric messages.
         // 1. registerListener: Captures FUTURE messages that arrive while the app is alive.
-    /*    MessageExtractor.registerListener { message ->
+        MessageExtractor.registerListener { message ->
             Log.d("RakshakPlugin", "Exposed Listener captured: ${message.content}")
         }
 
-        // 2. getLast25Messages: Retrieves messages that were ALREADY captured in the background.
-        // Note: This will be empty if the app was just installed or the process just started.
-        val history = MessageExtractor.getLast25Messages()
-        history.forEach { message ->
-            Log.d("History", "${message.sender}: ${message.content}")
-        } */
-
-        
-        
         enableEdgeToEdge()
         setContent {
             RakshakTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    MessageExtractorUI(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
@@ -47,17 +63,67 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun MessageExtractorUI(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var isPermissionGranted by remember { mutableStateOf(MessageExtractor.isPermissionGranted(context)) }
+    val messages = remember { mutableStateListOf<MessageData>() }
+
+    // This effect runs every time the permission status changes
+    LaunchedEffect(isPermissionGranted) {
+        if (isPermissionGranted) {
+            // Permission just granted! Pull any existing history
+            val history = MessageExtractor.getLast25Messages()
+            messages.clear()
+            messages.addAll(history)
+            Log.d("RakshakPlugin", "Permission active. Loaded ${history.size} historical messages.")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        MessageExtractor.messageFlow.collectLatest { message ->
+            if (!messages.contains(message)) {
+                messages.add(0, message)
+            }
+        }
+    }
+
+    // Refresh permission status when activity resumes
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isPermissionGranted = MessageExtractor.isPermissionGranted(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        if (!isPermissionGranted) {
+            Text(text = "Notification Access is required to capture messages.")
+            Button(onClick = { MessageExtractor.openPermissionSettings(context) }) {
+                Text("Grant Permission")
+            }
+        } else {
+            Text(text = "Capturing real-time messages...")
+            LazyColumn {
+                items(messages) { message ->
+                    MessageItem(message)
+                }
+            }
+        }
+    }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
-    RakshakTheme {
-        Greeting("Android")
+fun MessageItem(message: MessageData) {
+    Column(modifier = Modifier.padding(8.dp)) {
+        Text(text = "From: ${message.sender} (${message.packageName})", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+        Text(text = message.content)
+        Text(text = java.util.Date(message.timestamp).toString(), style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+        androidx.compose.material3.HorizontalDivider()
     }
 }
