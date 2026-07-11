@@ -1,0 +1,144 @@
+package com.androidblunders.rakshak.presentation
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.androidblunders.rakshak.core.model.ThreatLevel
+
+// "Vigilant Guardian" palette, kept local so this demo screen stays decoupled
+// from the app's evolving ui.theme module.
+private val GuardianBlue = Color(0xFF002045)
+private val SafetyGreen = Color(0xFF0A6C44)
+private val AlertRed = Color(0xFFBA1A1A)
+
+/**
+ * Minimal "Rakshak Dashboard" that observes the single source of truth
+ * (orchestrator threat state) and drives the app's color/status by level.
+ * Real screens (overlay interceptor, guidance mode, history) hang off this state.
+ */
+@Composable
+fun DashboardScreen(
+    modifier: Modifier = Modifier,
+    viewModel: DashboardViewModel = hiltViewModel(),
+) {
+    val state by viewModel.uiState.collectAsState()
+    var draft by remember { mutableStateOf("This is the police. A warrant is issued. Pay a fine now or be arrested.") }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(accentFor(state.threatLevel).copy(alpha = 0.06f))
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("Rakshak", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = GuardianBlue)
+
+        ThreatBanner(state)
+
+        Card(
+            colors = CardDefaults.cardColors(),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("On-device Gemma", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(
+                    if (state.modelReady) "Ready · ${state.backend}" else "Not loaded",
+                    color = if (state.modelReady) SafetyGreen else AlertRed,
+                )
+                if (state.isDownloading) {
+                    LinearProgressIndicator(
+                        progress = { state.downloadProgress },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text("Downloading model… ${(state.downloadProgress * 100).toInt()}%")
+                }
+                OutlinedButton(
+                    onClick = viewModel::prepareModel,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                ) { Text("Load Gemma") }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+        Text("Simulate an incoming message", fontWeight = FontWeight.Bold)
+        OutlinedTextField(
+            value = draft,
+            onValueChange = { draft = it },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3,
+        )
+        Button(
+            onClick = { viewModel.simulateMessage(draft) },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+        ) { Text("Analyze message") }
+
+        Spacer(Modifier.height(4.dp))
+        // Live notification/SMS capture + permission gate. Every message shown here
+        // is also fed through the orchestrator via NotificationMessageSource.
+        MessageMonitorSection()
+    }
+}
+
+@Composable
+private fun ThreatBanner(state: DashboardUiState) {
+    val accent = accentFor(state.threatLevel)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = accent),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                state.threatLevel.name.replace('_', ' '),
+                color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+            )
+            Text(state.statusLine, color = Color.White.copy(alpha = 0.9f))
+            Text(
+                "Confidence ${(state.confidence * 100).toInt()}%",
+                color = Color.White.copy(alpha = 0.9f),
+            )
+        }
+    }
+}
+
+private fun accentFor(level: ThreatLevel): Color = when (level) {
+    ThreatLevel.ACTIVE_THREAT, ThreatLevel.EMERGENCY -> AlertRed
+    ThreatLevel.MEDIUM -> AlertRed.copy(alpha = 0.8f)
+    ThreatLevel.GENTLE_GUIDANCE -> SafetyGreen
+    ThreatLevel.LOW, ThreatLevel.IDLE -> GuardianBlue
+}

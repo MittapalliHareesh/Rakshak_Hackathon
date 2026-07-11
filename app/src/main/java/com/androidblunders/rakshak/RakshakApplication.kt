@@ -1,6 +1,7 @@
 package com.androidblunders.rakshak
 
 import android.app.Application
+import com.androidblunders.rakshak.orchestrator.RakshakOrchestrator
 import com.androidblunders.rakshak.spam_detection.SpamDetectionOrchestrator
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -18,11 +19,13 @@ import javax.inject.Inject
 @HiltAndroidApp
 class RakshakApplication : Application() {
 
+    @Inject lateinit var orchestrator: RakshakOrchestrator
     @Inject
     lateinit var spamDetectionOrchestrator: SpamDetectionOrchestrator
 
     override fun onCreate() {
         super.onCreate()
+        orchestrator.start()
 
         // Activate the spam detection pipeline.
         // From this point on, every message captured by MessageExtractor
