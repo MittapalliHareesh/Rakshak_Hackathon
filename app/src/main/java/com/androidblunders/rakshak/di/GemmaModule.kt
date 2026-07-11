@@ -1,7 +1,6 @@
 package com.androidblunders.rakshak.di
 
 import com.androidblunders.rakshak.core.contract.TextGenerator
-import com.androidblunders.rakshak.gemma.GemmaTextGenerator
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -19,5 +18,5 @@ abstract class GemmaModule {
 
     @Binds
     @Singleton
-    abstract fun bindTextGenerator(impl: GemmaTextGenerator): TextGenerator
+    abstract fun bindTextGenerator(impl: com.androidblunders.rakshak.generator.FallbackTextGenerator): TextGenerator
 }

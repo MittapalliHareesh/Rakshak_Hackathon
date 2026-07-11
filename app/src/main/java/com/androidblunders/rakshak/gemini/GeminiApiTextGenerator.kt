@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import com.androidblunders.rakshak.BuildConfig
+
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -26,8 +28,7 @@ import javax.inject.Singleton
 class GeminiApiTextGenerator @Inject constructor() : TextGenerator {
 
     // For hackathon purposes, hardcode or inject this safely. 
-    // IMPORTANT: Make sure to provide a valid key!
-    private val apiKey = "YOUR_GEMINI_API_KEY_HERE"
+    private val apiKey = BuildConfig.GEMINI_API_KEY
     private val endpointUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey"
 
     private val _isReady = MutableStateFlow(true)

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,6 +16,20 @@ android {
     }
 
     defaultConfig {
+
+        // 1. Load the local.properties file (git-ignored — never commit secrets).
+        val properties = Properties()
+        val localPropertiesFile = project.rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            properties.load(localPropertiesFile.inputStream())
+        }
+
+        // 2. Fetch the key safely or use empty fallback string
+        val apiKey = properties.getProperty("GEMINI_API_KEY") ?: "\"\""
+
+        // 3. Inject it into BuildConfig
+        buildConfigField("String", "GEMINI_API_KEY", apiKey)
+
         applicationId = "com.androidblunders.rakshak"
         minSdk = 31
         targetSdk = 36
