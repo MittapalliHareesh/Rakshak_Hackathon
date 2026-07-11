@@ -10,12 +10,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
+import com.androidblunders.rakshak.call.CallStateMonitor
 import com.androidblunders.rakshak.presentation.DashboardScreen
 import com.androidblunders.rakshak.ui.theme.Typography
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var callStateMonitor: CallStateMonitor
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestCorePermissions()
@@ -24,6 +29,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(typography = Typography) { Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding -> DashboardScreen(modifier = Modifier.padding(innerPadding)) } }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-arm once READ_PHONE_STATE is granted (start() is idempotent + re-checks perm).
+        callStateMonitor.start()
     }
 
     private fun requestCorePermissions() {

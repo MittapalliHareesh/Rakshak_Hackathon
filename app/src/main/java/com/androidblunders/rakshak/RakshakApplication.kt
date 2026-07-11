@@ -1,6 +1,7 @@
 package com.androidblunders.rakshak
 
 import android.app.Application
+import com.androidblunders.rakshak.call.CallStateMonitor
 import com.androidblunders.rakshak.orchestrator.RakshakOrchestrator
 import com.androidblunders.rakshak.spam_detection.SpamDetectionOrchestrator
 import dagger.hilt.android.HiltAndroidApp
@@ -22,6 +23,7 @@ class RakshakApplication : Application() {
     @Inject lateinit var orchestrator: RakshakOrchestrator
     @Inject
     lateinit var spamDetectionOrchestrator: SpamDetectionOrchestrator
+    @Inject lateinit var callStateMonitor: CallStateMonitor
 
     override fun onCreate() {
         super.onCreate()
@@ -29,7 +31,11 @@ class RakshakApplication : Application() {
 
         // Activate the spam detection pipeline.
         // From this point on, every message captured by MessageExtractor
-        // flows through ThreatFusionEngine → GemmaAnalyzer automatically.
+        // (and every live-call transcript) flows through ThreatFusionEngine →
+        // GemmaAnalyzer automatically.
         spamDetectionOrchestrator.startObserving()
+
+        // Auto-start call protection the moment a call connects.
+        callStateMonitor.start()
     }
 }

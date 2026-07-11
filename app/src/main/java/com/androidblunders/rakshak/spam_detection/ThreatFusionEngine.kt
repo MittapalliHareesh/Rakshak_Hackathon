@@ -60,7 +60,7 @@ class ThreatFusionEngine @Inject constructor(
         withContext(Dispatchers.Default) {
             if (analyzers.isEmpty()) {
                 Log.w(TAG, "No analyzers registered — returning safe default")
-                return@withContext ThreatScore(0f, LABEL_SAFE, 0f, "no analyzers")
+                return@withContext ThreatScore(0f, LABEL_SAFE, 0f, rawOutput = "no analyzers")
             }
 
             // Collect scores; nulls mean an analyzer failed / timed out
@@ -77,7 +77,7 @@ class ThreatFusionEngine @Inject constructor(
 
             if (validScores.isEmpty()) {
                 Log.e(TAG, "All analyzers failed — returning safe default")
-                return@withContext ThreatScore(0f, LABEL_SAFE, 0f, "all analyzers failed")
+                return@withContext ThreatScore(0f, LABEL_SAFE, 0f, rawOutput = "all analyzers failed")
             }
 
             // --- Fusion logic ---

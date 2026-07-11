@@ -15,6 +15,13 @@
     <!-- Gemini Live API connectivity -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Protective overlay drawn over the scammer's call screen -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <!-- SMS reading + emergency family alerts -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -29,6 +36,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Rakshak">
 
         <activity
@@ -53,28 +61,28 @@
             </intent-filter>
         </service>
 
-<<<<<<< HEAD
-=======
         <service
             android:name=".services.OverlayService"
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Live call / mic recording (16kHz PCM) for the STT + spam pipeline -->
-        <service
-            android:name=".call.CallRecordingService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="microphone" />
-
-        <!-- Adding CallAudioStreamingService -->
+        <!-- Live call audio → VOICE WebSocket (16kHz PCM) -->
          <service
             android:name=".services.CallAudioStreamingService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
->>>>>>> d244787762e98da9e0cd4580903c464a73ed0c3d
+        <!-- Auto-activates protection when a call connects (works UI-closed) -->
+        <receiver
+            android:name=".call.PhoneCallReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

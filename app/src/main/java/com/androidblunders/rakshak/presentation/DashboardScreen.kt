@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.androidblunders.rakshak.core.model.ThreatLevel
+import com.androidblunders.rakshak.audio.CallTranscriber
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 
 // "Vigilant Guardian" palette, kept local so this demo screen stays decoupled
 // from the app's evolving ui.theme module.
@@ -67,11 +70,17 @@ fun DashboardScreen(
 
         ThreatBanner(state)
 
+<<<<<<< HEAD
         state.spamResult?.let { 
             SpamResultCard(result = it, onReportClicked = { res -> 
                 viewModel.reportToCyberPolice(context, res) 
             }) 
         }
+=======
+        AudioStreamMonitorSection()
+        
+        state.spamResult?.let { SpamResultCard(it) }
+>>>>>>> 6fc7644e50134b1fb57acc8b7aad2bbd14d502a3
 
         Card(
             colors = CardDefaults.cardColors(),
@@ -142,13 +151,58 @@ private fun LiveCallSection() {
                 fontSize = 14.sp,
             )
             Button(
-                onClick = { com.androidblunders.rakshak.call.CallRecordingService.start(context) },
+                onClick = { com.androidblunders.rakshak.audio.CallTranscriber.startTranscription(context) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) { Text("Start live call protection") }
             OutlinedButton(
-                onClick = { com.androidblunders.rakshak.call.CallRecordingService.stop(context) },
+                onClick = { com.androidblunders.rakshak.audio.CallTranscriber.stopTranscription(context) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) { Text("Stop") }
+        }
+    }
+}
+
+@Composable
+private fun AudioStreamMonitorSection() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isStreaming by remember { mutableStateOf(false) }
+    var transcript by remember { mutableStateOf("") }
+
+    LaunchedEffect(isStreaming) {
+        while (isStreaming) {
+            transcript = CallTranscriber.getTranscript()
+            delay(1000)
+        }
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Real-time Call Analysis", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(if (isStreaming) "Streaming audio..." else "Standby", color = if (isStreaming) SafetyGreen else GuardianBlue)
+            
+            Button(
+                onClick = {
+                    if (isStreaming) {
+                        CallTranscriber.stopTranscription(context)
+                    } else {
+                        CallTranscriber.startTranscription(context)
+                    }
+                    isStreaming = !isStreaming
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isStreaming) "Stop Streaming" else "Start Analysis")
+            }
+            
+            if (transcript.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text("Transcript:", fontWeight = FontWeight.SemiBold)
+                Text(transcript, fontSize = 14.sp)
+            }
         }
     }
 }
