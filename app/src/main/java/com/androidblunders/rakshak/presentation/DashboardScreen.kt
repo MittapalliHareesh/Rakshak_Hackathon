@@ -62,11 +62,16 @@ fun DashboardScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        val context = LocalContext.current
         Text("Rakshak", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = GuardianBlue)
 
         ThreatBanner(state)
 
-        state.spamResult?.let { SpamResultCard(it) }
+        state.spamResult?.let { 
+            SpamResultCard(result = it, onReportClicked = { res -> 
+                viewModel.reportToCyberPolice(context, res) 
+            }) 
+        }
 
         Card(
             colors = CardDefaults.cardColors(),
@@ -175,7 +180,10 @@ private fun ThreatBanner(state: DashboardUiState) {
 }
 
 @Composable
-private fun SpamResultCard(result: com.androidblunders.rakshak.spam_detection.SpamDetectionResult) {
+private fun SpamResultCard(
+    result: com.androidblunders.rakshak.spam_detection.SpamDetectionResult,
+    onReportClicked: (com.androidblunders.rakshak.spam_detection.SpamDetectionResult) -> Unit
+) {
     val score = result.score.score
     val accent = when {
         score >= 0.80f -> AlertRed
@@ -196,6 +204,14 @@ private fun SpamResultCard(result: com.androidblunders.rakshak.spam_detection.Sp
                 "${result.status}  ·  ${result.score.label}  ·  ${(score * 100).toInt()}%",
                 color = accent, fontWeight = FontWeight.Bold, fontSize = 16.sp,
             )
+            
+            if (result.hasTransaction) {
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = { onReportClicked(result) },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                ) { Text("Report to Cyber Police") }
+            }
         }
     }
 }

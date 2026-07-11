@@ -104,4 +104,15 @@ class DashboardViewModel @Inject constructor(
         level == ThreatLevel.IDLE -> "Monitoring active"
         else -> "Threat detected: $level"
     }
+
+    /** Draft an email to the Cyber Police if a transaction scam is detected. */
+    fun reportToCyberPolice(context: android.content.Context, result: SpamDetectionResult) {
+        val details = com.androidblunders.rakshak.reporting.TransactionDetailsExtractor.extractDetails(result.messageBody)
+        com.androidblunders.rakshak.reporting.CyberPoliceReporter.draftEmail(
+            context,
+            result.sender,
+            result.messageBody,
+            details
+        )
+    }
 }

@@ -29,15 +29,7 @@ data class SpamDetectionResult(
     val score: ThreatScore,
     val status: String,
     val timestamp: Long,
-)
-
-/** UI-facing result of a single analyzed message. */
-data class SpamDetectionResult(
-    val sender: String,
-    val messageBody: String,
-    val score: ThreatScore,
-    val status: String,
-    val timestamp: Long,
+    val hasTransaction: Boolean = false
 )
 
 /**
@@ -160,6 +152,25 @@ class SpamDetectionOrchestrator @Inject constructor(
             else                                -> "✅ SAFE"
         }
 
+        val latestSms = ctx.recentSmsMessages.lastOrNull()
+        val isTransaction = latestSms?.let { com.androidblunders.rakshak.reporting.TransactionDetailsExtractor.isTransactionSms(it.body) } ?: false
+
+        // Publish to StateFlow observers (UI / dashboard).
+        val result = SpamDetectionResult(
+            sender      = ctx.callerNumber,
+            messageBody = latestSms?.body ?: ctx.allSmsText.take(120),
+            score       = score,
+            status      = level,
+            timestamp   = ctx.analysisTimestampMs,
+            hasTransaction = isTransaction
+        )
+        _latestResult.value = result
+        _recentResults.value = (listOf(result) + _recentResults.value).take(MAX_RECENT)
+
+        val otpFlag   = if (ctx.hasOtpSms) " [OTP]" else ""
+        val upiFlag   = if (ctx.hasUpiSms) " [UPI]" else ""
+        val signalStr = if (score.signals.isEmpty()) "none" else score.signals.joinToString()
+
         Log.i(
             TAG, """
             ┌── Spam Detection Result ──────────────────────────────────
@@ -187,9 +198,17 @@ class SpamDetectionOrchestrator @Inject constructor(
 
     /** Converts the messaging layer's [MessageData] to the spam detection [CallContext]. */
     private fun MessageData.toCallContext() = CallContext(
-        sender      = sender,
-        messageBody = content,
-        packageName = packageName,
-        timestamp   = timestamp
+        callMetadata = CallMetadata(
+            callerNumber   = sender,
+            isKnownContact = false,
+            callDirection  = CallDirection.INCOMING,
+            callStartTimeMs = timestamp
+        ),
+        recentSmsMessages  = listOf(SMSMessage(
+            sender       = sender,
+            body         = content,
+            packageName  = packageName,
+            receivedAtMs = timestamp
+        ))
     )
 }
