@@ -1,6 +1,7 @@
 import logging
 import base64
 import asyncio
+import io
 from typing import AsyncGenerator, Optional
 from google import genai
 from google.genai import types
@@ -51,7 +52,7 @@ class STTService:
         )
         
         config = types.LiveConnectConfig(
-            response_modalities=["TEXT"],  # We only need text transcription
+            response_modalities=["AUDIO"],  # Use AUDIO modality as supported by live model
             system_instruction=types.Content(
                 parts=[types.Part(text=instruction)]
             )
@@ -122,9 +123,52 @@ class STTService:
         except Exception as e:
             logger.error(f"Error receiving STT transcription: {e}")
     
+    def extract_pcm_from_wav(self, audio_bytes: bytes, target_rate: int = 16000) -> tuple[bytes, int]:
+        """
+        Extract raw PCM bytes from a WAV file.
+        Returns (pcm_bytes, sample_rate).
+        """
+        try:
+            import wave
+            wav = wave.open(io.BytesIO(audio_bytes), 'rb')
+            n_channels = wav.getnchannels()
+            sample_width = wav.getsampwidth()
+            sample_rate = wav.getframerate()
+            n_frames = wav.getnframes()
+            
+            raw_data = wav.readframes(n_frames)
+            wav.close()
+            
+            # Convert stereo to mono if needed
+            if n_channels == 2:
+                # Simple stereo to mono conversion for 16-bit samples
+                if sample_width == 2:
+                    import array
+                    samples = array.array('h', raw_data)
+                    mono = array.array('h')
+                    for i in range(0, len(samples), 2):
+                        left = samples[i]
+                        right = samples[i+1]
+                        mono.append((left + right) // 2)
+                    raw_data = mono.tobytes()
+                # For other sample widths, just use left channel
+                else:
+                    raw_data = raw_data[::n_channels * sample_width]
+            
+            # Simple resampling is complex; if sample rate is not target, we return as-is
+            # and let the caller know. For proper resampling, use librosa/pydub.
+            if sample_rate != target_rate:
+                logger.warning(f"Audio sample rate is {sample_rate}Hz, target is {target_rate}Hz. Consider resampling for best results.")
+            
+            return raw_data, sample_rate
+        except Exception as e:
+            logger.warning(f"Could not parse as WAV: {e}")
+            return audio_bytes, 16000
+    
     async def transcribe_audio_base64(self, audio_base64: str, language: str = "hi-IN", mime_type: str = "audio/pcm;rate=16000") -> str:
         """
         Transcribes a base64 encoded audio file using Gemini Live API.
+        Supports WAV, MP3, OGG, FLAC, M4A, and raw PCM audio.
         """
         if not self.client:
             logger.error("STT client not initialized")
@@ -132,6 +176,17 @@ class STTService:
         
         try:
             audio_bytes = base64.b64decode(audio_base64)
+            logger.info(f"Audio size: {len(audio_bytes)} bytes, MIME type: {mime_type}")
+            
+            # For WAV files, extract PCM and update MIME type
+            if mime_type == "audio/wav" or audio_bytes.startswith(b'RIFF'):
+                logger.info("Processing WAV file")
+                try:
+                    audio_bytes, sample_rate = self.extract_pcm_from_wav(audio_bytes)
+                    mime_type = f"audio/pcm;rate={sample_rate}"
+                    logger.info(f"Extracted PCM: {len(audio_bytes)} bytes at {sample_rate}Hz")
+                except Exception as e:
+                    logger.warning(f"Failed to extract WAV PCM: {e}, using as-is")
             
             system_instruction = (
                 f"You are a speech-to-text transcription agent. Listen to the audio and "
@@ -139,37 +194,59 @@ class STTService:
                 f"only transcribe the speech in the language it is spoken."
             )
             
-            transcription = ""
+            transcription_parts = []
             
             async with self.connect(language=language, system_instruction=system_instruction) as session:
-                # Send audio data
+                # Send entire audio at once for better results with Gemini Live
+                logger.info(f"Sending {len(audio_bytes)} bytes of audio to Gemini Live API")
                 await session.send_realtime_input(
-                    audio=types.Blob(
-                        data=audio_bytes,
-                        mime_type=mime_type
-                    )
+                    audio=types.Blob(data=audio_bytes, mime_type=mime_type)
                 )
                 
-                # Receive transcription
-                async for response in session.receive():
-                    if response.server_content and response.server_content.model_turn:
-                        for part in response.server_content.model_turn.parts:
-                            if part.text:
-                                transcription += part.text + " "
-                                logger.info(f"STT Transcription: {part.text}")
-                    elif response.server_content and hasattr(response.server_content, 'input_transcription') and response.server_content.input_transcription:
-                        if response.server_content.input_transcription.text:
-                            transcription += response.server_content.input_transcription.text + " "
-                            logger.info(f"STT Input Transcription: {response.server_content.input_transcription.text}")
-                    
-                    # Break after getting some transcription
-                    if transcription.strip():
-                        await asyncio.sleep(0.5)
-                        break
+                # Wait for model to process
+                await asyncio.sleep(1.0)
+                
+                # Collect transcriptions with timeout
+                start_time = asyncio.get_event_loop().time()
+                timeout = 10.0
+                
+                try:
+                    async for response in session.receive():
+                        elapsed = asyncio.get_event_loop().time() - start_time
+                        if elapsed > timeout:
+                            logger.info(f"STT timeout after {elapsed:.1f}s")
+                            break
+                        
+                        # Check for model turn (response from model)
+                        if response.server_content and response.server_content.model_turn:
+                            for part in response.server_content.model_turn.parts:
+                                if part.text:
+                                    transcription_parts.append(part.text)
+                                    logger.info(f"STT Transcription: {part.text}")
+                        
+                        # Check for input transcription (user's speech transcribed)
+                        elif response.server_content and hasattr(response.server_content, 'input_transcription') and response.server_content.input_transcription:
+                            if response.server_content.input_transcription.text:
+                                transcription_parts.append(response.server_content.input_transcription.text)
+                                logger.info(f"STT Input Transcription: {response.server_content.input_transcription.text}")
+                        
+                        # If we have substantial transcription, we can stop waiting
+                        combined = " ".join(transcription_parts).strip()
+                        if len(combined) > 50:
+                            logger.info(f"Got sufficient transcription: {len(combined)} chars")
+                            break
+                            
+                except asyncio.TimeoutError:
+                    logger.info("Receive timeout")
+                except Exception as e:
+                    logger.error(f"Error during transcription receive: {e}")
             
-            return transcription.strip()
+            result = " ".join(transcription_parts).strip()
+            logger.info(f"Final transcription: {result[:100] if result else '(empty)'}")
+            return result
+            
         except Exception as e:
-            logger.error(f"Error transcribing base64 audio: {e}")
+            logger.error(f"Error transcribing base64 audio: {e}", exc_info=True)
             return ""
 
 stt_service = STTService()
