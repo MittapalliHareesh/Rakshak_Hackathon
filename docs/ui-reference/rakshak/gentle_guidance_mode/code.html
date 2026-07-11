@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>RAKSHAK - Gentle Guidance</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+        }
+        .tinted-primary {
+            box-shadow: 0 4px 20px -2px rgba(0, 32, 69, 0.15);
+        }
+        .pulse-soft {
+            animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+        .float-gentle {
+            animation: float 4s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        body {
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#e0e3e5",
+                        "inverse-on-surface": "#eef1f3",
+                        "on-primary-container": "#86a0cd",
+                        "on-error-container": "#93000a",
+                        "primary-fixed": "#d6e3ff",
+                        "on-tertiary-fixed-variant": "#920212",
+                        "inverse-primary": "#adc7f7",
+                        "on-primary": "#ffffff",
+                        "on-background": "#181c1e",
+                        "primary": "#002045",
+                        "surface-container": "#ebeef0",
+                        "secondary": "#0a6c44",
+                        "surface-container-high": "#e5e9eb",
+                        "tertiary-fixed": "#ffdad6",
+                        "on-primary-fixed": "#001b3c",
+                        "secondary-container": "#9ff5c1",
+                        "tertiary-container": "#73000b",
+                        "outline": "#74777f",
+                        "on-secondary-fixed": "#002111",
+                        "on-surface": "#181c1e",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#43474e",
+                        "on-primary-fixed-variant": "#2d476f",
+                        "secondary-fixed-dim": "#83d8a6",
+                        "surface-bright": "#f7fafc",
+                        "tertiary": "#4b0004",
+                        "on-secondary-fixed-variant": "#005231",
+                        "background": "#f7fafc",
+                        "secondary-fixed": "#9ff5c1",
+                        "on-tertiary-fixed": "#410003",
+                        "inverse-surface": "#2d3133",
+                        "surface-tint": "#455f88",
+                        "surface": "#f7fafc",
+                        "on-secondary-container": "#167249",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#ffb3ad",
+                        "surface-dim": "#d7dadc",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e0e3e5",
+                        "on-tertiary-container": "#ff736b",
+                        "primary-fixed-dim": "#adc7f7",
+                        "outline-variant": "#c4c6cf",
+                        "on-error": "#ffffff",
+                        "primary-container": "#1a365d",
+                        "surface-container-low": "#f1f4f6",
+                        "on-tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-md": "24px",
+                        "stack-lg": "40px",
+                        "touch-target-min": "56px",
+                        "margin-desktop": "64px",
+                        "margin-mobile": "24px",
+                        "gutter": "20px",
+                        "stack-sm": "12px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "callout": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "label-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "500"}],
+                        "callout": ["22px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                        "label-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface-container-low font-body-md text-on-surface">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface-container shadow-sm tinted-primary flex justify-between items-center px-margin-mobile h-touch-target-min">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary text-headline-md" style="font-variation-settings: 'FILL' 1;">shield</span>
+<h1 class="text-headline-md font-headline-md font-bold text-primary">RAKSHAK</h1>
+</div>
+<button class="w-touch-target-min h-touch-target-min flex items-center justify-center text-on-surface-variant hover:bg-surface-variant transition-colors active:scale-95 duration-100 rounded-full">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</header>
+<main class="pt-24 pb-32 px-margin-mobile max-w-xl mx-auto min-h-screen">
+<!-- Animated Visual Anchor -->
+<div class="relative w-full aspect-square mb-8 flex items-center justify-center">
+
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-48 h-48 rounded-full overflow-hidden border-8 border-secondary-container bg-white shadow-xl float-gentle">
+<img class="w-full h-full object-cover" data-alt="A warm, smiling, professional young Indian man or woman looking directly at the camera with a kind and reassuring expression. The lighting is soft and natural, suggesting a safe home environment. The aesthetic is modern and clean, using a soft palette of teal and white to convey trust and digital companionship." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9VKBfb72hheHDq7b51mEEdDw5J255oQic3nhGsdoWztPpJkYFmiqoIOCw87N2KuEO2r7jmpx3KewicfgsvXVklVxlOZuySeBr1L0aFwEIpEo5V2f5Eb8gPMt5M8XNNsTCMPZ5D-9TmwuTUY1Dsk7RbfXRMkKvRqEiJDSCCLnsQ_69J_Ea9CNDSJU1W7-HUiV96QU_ze0l2C21hinBA570YgoTlOUzRTzFj2L-8s3riW47fSI4xfdnjw"/>
+</div>
+<div class="mt-6 bg-secondary-container text-on-secondary-container px-6 py-2 rounded-full font-bold shadow-sm">
+                    Beta is here
+                </div>
+</div>
+</div>
+<!-- Reassurance Message -->
+<section class="text-center mb-10">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-primary mb-4 leading-tight">
+                Dadiji, aap surakshit hain.
+            </h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant px-4">
+                Bas yeh laal button dabaiye aur phone kaat dijiye.
+            </p>
+</section>
+<!-- Step-by-Step Visual Guidance -->
+<div class="space-y-stack-md mb-12">
+<!-- Step 1 Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm flex items-center gap-6">
+<div class="w-16 h-16 shrink-0 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center font-bold text-2xl">
+                    1
+                </div>
+<div>
+<h3 class="font-callout text-callout text-primary">Baat band karein</h3>
+<p class="text-on-surface-variant">Don't listen to them anymore.</p>
+</div>
+</div>
+<!-- Step 2 Card (The Action) -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border-4 border-error shadow-lg flex flex-col gap-6 relative overflow-hidden pulse-soft">
+<div class="flex items-center gap-6">
+<div class="w-16 h-16 shrink-0 bg-error text-on-error rounded-full flex items-center justify-center font-bold text-2xl">
+                        2
+                    </div>
+<div>
+<h3 class="font-callout text-callout text-error">Laal button dabaiye</h3>
+<p class="text-on-surface-variant font-medium">Press the red button now.</p>
+</div>
+</div>
+<button class="w-full h-20 bg-error hover:bg-error-container text-on-error active:scale-95 transition-all rounded-xl shadow-xl flex items-center justify-center gap-4 group">
+<span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">call_end</span>
+<span class="text-2xl font-bold tracking-wide uppercase">Hang Up Now</span>
+</button>
+</div>
+<!-- Step 3 Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm flex items-center gap-6 opacity-70">
+<div class="w-16 h-16 shrink-0 bg-surface-container-highest text-on-surface-variant rounded-full flex items-center justify-center font-bold text-2xl">
+                    3
+                </div>
+<div>
+<h3 class="font-callout text-callout text-on-surface-variant">Hum sambhal lenge</h3>
+<p class="text-on-surface-variant">We will block this caller for you.</p>
+</div>
+</div>
+</div>
+<!-- Help/Secondary Action -->
+<div class="flex justify-center pb-12">
+<button class="flex items-center gap-3 px-8 py-4 rounded-full border-2 border-secondary text-secondary font-bold hover:bg-secondary-container transition-colors active:scale-90">
+<span class="material-symbols-outlined">family_restroom</span>
+                Call Family Member
+            </button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-surface-container-lowest border-t border-outline-variant shadow-lg flex justify-around items-center h-24 px-4 pb-4 rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-full transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-lg text-label-lg">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-6 py-2" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-label-lg text-label-lg">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-full transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-lg text-label-lg">Family</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-full transition-colors" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span class="font-label-lg text-label-lg">Support</span>
+</a>
+</nav>
+<!-- Micro-interaction Script -->
+<script>
+        // Subtle haptic-like vibration on the main hang-up button click
+        const hangUpBtn = document.querySelector('.bg-error');
+        hangUpBtn.addEventListener('click', () => {
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate([100, 50, 100]);
+            }
+            
+            // Visual feedback
+            hangUpBtn.innerHTML = `
+                <span class="material-symbols-outlined text-4xl animate-spin">sync</span>
+                <span class="text-2xl font-bold">Cutting Call...</span>
+            `;
+            
+            setTimeout(() => {
+                window.location.reload(); // Simple reset for demo
+            }, 2000);
+        });
+
+        // Add entrance animations for cards
+        document.querySelectorAll('.rounded-xl').forEach((el, index) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                el.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 100 * index);
+        });
+    </script>
+</body></html>

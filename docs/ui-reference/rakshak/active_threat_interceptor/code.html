@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rakshak - Active Interception</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "error-container": "#ffdad6",
+                    "surface-container-highest": "#e0e3e5",
+                    "inverse-on-surface": "#eef1f3",
+                    "on-primary-container": "#86a0cd",
+                    "on-error-container": "#93000a",
+                    "primary-fixed": "#d6e3ff",
+                    "on-tertiary-fixed-variant": "#920212",
+                    "inverse-primary": "#adc7f7",
+                    "on-primary": "#ffffff",
+                    "on-background": "#181c1e",
+                    "primary": "#002045",
+                    "surface-container": "#ebeef0",
+                    "secondary": "#0a6c44",
+                    "surface-container-high": "#e5e9eb",
+                    "tertiary-fixed": "#ffdad6",
+                    "on-primary-fixed": "#001b3c",
+                    "secondary-container": "#9ff5c1",
+                    "tertiary-container": "#73000b",
+                    "outline": "#74777f",
+                    "on-secondary-fixed": "#002111",
+                    "on-surface": "#181c1e",
+                    "on-secondary": "#ffffff",
+                    "on-surface-variant": "#43474e",
+                    "on-primary-fixed-variant": "#2d476f",
+                    "secondary-fixed-dim": "#83d8a6",
+                    "surface-bright": "#f7fafc",
+                    "tertiary": "#4b0004",
+                    "on-secondary-fixed-variant": "#005231",
+                    "background": "#f7fafc",
+                    "secondary-fixed": "#9ff5c1",
+                    "on-tertiary-fixed": "#410003",
+                    "inverse-surface": "#2d3133",
+                    "surface-tint": "#455f88",
+                    "surface": "#f7fafc",
+                    "on-secondary-container": "#167249",
+                    "error": "#ba1a1a",
+                    "tertiary-fixed-dim": "#ffb3ad",
+                    "surface-dim": "#d7dadc",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-variant": "#e0e3e5",
+                    "on-tertiary-container": "#ff736b",
+                    "primary-fixed-dim": "#adc7f7",
+                    "outline-variant": "#c4c6cf",
+                    "on-error": "#ffffff",
+                    "primary-container": "#1a365d",
+                    "surface-container-low": "#f1f4f6",
+                    "on-tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-md": "24px",
+                    "stack-lg": "40px",
+                    "touch-target-min": "56px",
+                    "margin-desktop": "64px",
+                    "margin-mobile": "24px",
+                    "gutter": "20px",
+                    "stack-sm": "12px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "callout": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "headline-lg-mobile": ["Plus Jakarta Sans"],
+                    "label-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "500"}],
+                    "callout": ["22px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                    "label-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+
+        @keyframes pulse-red {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(186, 26, 26, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(186, 26, 26, 0); }
+        }
+
+        .alert-pulse {
+            animation: pulse-red 2s infinite;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+        }
+
+        .scrolling-transcript {
+            mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased overflow-hidden">
+<!-- Active Interception Overlay Container -->
+<div class="fixed inset-0 z-[100] flex flex-col bg-error-container">
+<!-- Animated Background Shader (Emergency Context) -->
+
+<!-- Top Content Section -->
+<div class="relative z-10 pt-stack-lg px-margin-mobile flex flex-col items-center text-center">
+<!-- Warning Icon -->
+<div class="w-20 h-20 bg-error rounded-full flex items-center justify-center alert-pulse mb-stack-sm">
+<span class="material-symbols-outlined text-on-error text-[48px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-error mb-2">SCAM DETECTED</h1>
+<p class="font-body-lg text-body-lg text-on-error-container max-w-[320px]">Rakshak is blocking a potential threat from an unknown caller.</p>
+</div>
+<!-- Live Transcript Bento Box -->
+<div class="relative z-10 flex-1 px-margin-mobile mt-stack-md">
+<div class="glass-panel border-2 border-error rounded-xl h-full flex flex-col p-6 shadow-2xl">
+<div class="flex items-center justify-between mb-4">
+<span class="font-label-lg text-label-lg text-error uppercase flex items-center gap-2">
+<span class="w-2 h-2 bg-error rounded-full animate-pulse"></span>
+                        Live Transcript
+                    </span>
+<span class="text-on-surface-variant text-sm">Real-time analysis...</span>
+</div>
+<div class="flex-1 scrolling-transcript overflow-y-auto space-y-stack-sm pr-2">
+<!-- Transcript Bubbles -->
+<div class="flex flex-col items-start gap-1">
+<span class="text-xs font-bold text-on-surface-variant uppercase">Caller</span>
+<div class="bg-surface-container rounded-r-xl rounded-bl-xl p-4 max-w-[90%]">
+<p class="font-body-md text-body-md">Hello, I am calling from the <span class="text-error font-bold underline">CBI</span> headquarters regarding your bank account.</p>
+</div>
+</div>
+<div class="flex flex-col items-start gap-1">
+<span class="text-xs font-bold text-on-surface-variant uppercase">Caller</span>
+<div class="bg-surface-container rounded-r-xl rounded-bl-xl p-4 max-w-[90%]">
+<p class="font-body-md text-body-md">There is an urgent issue. You must <span class="text-error font-bold underline">Transfer Money</span> immediately to avoid legal action.</p>
+</div>
+</div>
+<div class="flex flex-col items-start gap-1">
+<span class="text-xs font-bold text-on-surface-variant uppercase">Caller</span>
+<div class="bg-surface-container rounded-r-xl rounded-bl-xl p-4 max-w-[90%]">
+<p class="font-body-md text-body-md">Do not disconnect the call or tell anyone. This is a high-security matter.</p>
+</div>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant">
+<div class="flex items-center gap-3 text-on-error-container">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">gavel</span>
+<p class="text-sm font-bold">Threat Type: Government Impersonation &amp; Financial Fraud</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Section -->
+<div class="relative z-10 px-margin-mobile py-stack-lg space-y-stack-md bg-gradient-to-t from-error-container via-error-container/90 to-transparent">
+<!-- Primary Critical Action -->
+<button class="w-full h-touch-target-min bg-error text-on-error rounded-xl font-headline-md text-headline-md flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-transform duration-100" onclick="window.location.reload()">
+<span class="material-symbols-outlined text-[32px]">call_end</span>
+                HANG UP NOW
+            </button>
+<!-- Secondary Safety Action -->
+<div class="flex flex-col gap-3">
+<button class="w-full h-touch-target-min border-2 border-primary text-primary rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 active:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">verified_user</span>
+                    REPORT &amp; BLOCK CALLER
+                </button>
+<div class="flex items-center justify-between gap-4 mt-2">
+<button class="flex-1 h-touch-target-min bg-surface-container-low text-on-surface-variant rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 opacity-80 active:opacity-100">
+<span class="material-symbols-outlined">help</span>
+                        Beta, Help
+                    </button>
+<button class="flex-1 h-touch-target-min border-2 border-outline-variant text-on-surface-variant rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 active:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">visibility_off</span>
+                        Ignore Alert
+                    </button>
+</div>
+</div>
+</div>
+<!-- Safety Assurance Footer -->
+<div class="relative z-10 py-4 bg-primary text-on-primary flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">shield</span>
+<p class="font-label-lg text-[12px] uppercase tracking-widest">Rakshak Active Protection Enabled</p>
+</div>
+</div>
+<!-- Background Decorative Image (Subtle context) -->
+<div class="fixed inset-0 z-0 pointer-events-none">
+<div class="absolute inset-0 bg-error-container mix-blend-multiply opacity-20" data-alt="A cinematic, high-contrast close-up of a digital smartphone screen glowing in the dark, displaying complex security interfaces and red warning icons. The lighting is dramatic, with deep crimson and obsidian tones emphasizing a state of emergency. The overall mood is serious, professional, and protective, reflecting the vigilant son/daughter persona of the Rakshak app." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBM2L9aBfUGO96gBYbGbeSkkKz4MUySnkHGf1HtVPpjbesk1GFHKyPBUca6Mzai7yQYRnTZWBAI--AcAlo3fvVzZZSQmfKVGiN8TRSrkh-KilK3Ncht6BacJsbg4jVYozbz5PW4SAa6DM6Pg_ds0mb6bMdbxx_zTZbpQ5egnWyQb-PXrP8gm5mAN-VCszaDENcJTN0PohSsLKd35YaKq_yd755b4cgon7RrnjpnvvGf29LKPrViSBcJZA')">
+</div>
+</div>
+<script>
+        // Micro-interaction for the transcript to simulate real-time typing
+        document.addEventListener('DOMContentLoaded', () => {
+            const transcriptContainer = document.querySelector('.scrolling-transcript');
+            
+            // Auto-scroll to bottom of transcript
+            const scrollToBottom = () => {
+                transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+            };
+            
+            scrollToBottom();
+            
+            // Optional: Shake effect on the phone icon every few seconds
+            const alertIcon = document.querySelector('.alert-pulse');
+            setInterval(() => {
+                alertIcon.classList.add('animate-bounce');
+                setTimeout(() => alertIcon.classList.remove('animate-bounce'), 1000);
+            }, 5000);
+        });
+    </script>
+</body></html>

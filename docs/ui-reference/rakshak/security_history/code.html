@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rakshak - Family Alert Log</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "error-container": "#ffdad6",
+                    "surface-container-highest": "#e0e3e5",
+                    "inverse-on-surface": "#eef1f3",
+                    "on-primary-container": "#86a0cd",
+                    "on-error-container": "#93000a",
+                    "primary-fixed": "#d6e3ff",
+                    "on-tertiary-fixed-variant": "#920212",
+                    "inverse-primary": "#adc7f7",
+                    "on-primary": "#ffffff",
+                    "on-background": "#181c1e",
+                    "primary": "#002045",
+                    "surface-container": "#ebeef0",
+                    "secondary": "#0a6c44",
+                    "surface-container-high": "#e5e9eb",
+                    "tertiary-fixed": "#ffdad6",
+                    "on-primary-fixed": "#001b3c",
+                    "secondary-container": "#9ff5c1",
+                    "tertiary-container": "#73000b",
+                    "outline": "#74777f",
+                    "on-secondary-fixed": "#002111",
+                    "on-surface": "#181c1e",
+                    "on-secondary": "#ffffff",
+                    "on-surface-variant": "#43474e",
+                    "on-primary-fixed-variant": "#2d476f",
+                    "secondary-fixed-dim": "#83d8a6",
+                    "surface-bright": "#f7fafc",
+                    "tertiary": "#4b0004",
+                    "on-secondary-fixed-variant": "#005231",
+                    "background": "#f7fafc",
+                    "secondary-fixed": "#9ff5c1",
+                    "on-tertiary-fixed": "#410003",
+                    "inverse-surface": "#2d3133",
+                    "surface-tint": "#455f88",
+                    "surface": "#f7fafc",
+                    "on-secondary-container": "#167249",
+                    "error": "#ba1a1a",
+                    "tertiary-fixed-dim": "#ffb3ad",
+                    "surface-dim": "#d7dadc",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-variant": "#e0e3e5",
+                    "on-tertiary-container": "#ff736b",
+                    "primary-fixed-dim": "#adc7f7",
+                    "outline-variant": "#c4c6cf",
+                    "on-error": "#ffffff",
+                    "primary-container": "#1a365d",
+                    "surface-container-low": "#f1f4f6",
+                    "on-tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-md": "24px",
+                    "stack-lg": "40px",
+                    "touch-target-min": "56px",
+                    "margin-desktop": "64px",
+                    "margin-mobile": "24px",
+                    "gutter": "20px",
+                    "stack-sm": "12px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "callout": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "headline-lg-mobile": ["Plus Jakarta Sans"],
+                    "label-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "500"}],
+                    "callout": ["22px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                    "label-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .tinted-primary { box-shadow: 0 4px 20px -4px rgba(0, 32, 69, 0.1); }
+        .tap-highlight-transparent { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface-container dark:bg-surface-container-high shadow-sm flex justify-between items-center px-margin-mobile h-touch-target-min">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed" data-icon="shield">shield</span>
+<h1 class="text-headline-md font-headline-md font-bold text-primary dark:text-primary-fixed">RAKSHAK</h1>
+</div>
+<button class="material-symbols-outlined text-primary dark:text-primary-fixed hover:bg-surface-variant transition-colors p-2 rounded-full active:scale-95 duration-100" data-icon="settings">settings</button>
+</header>
+<main class="pt-24 px-margin-mobile max-w-2xl mx-auto">
+<!-- Page Title -->
+<section class="mb-stack-lg">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-primary mb-2">Family Alert Log</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Real-time protection history for your peace of mind.</p>
+</section>
+<!-- Stats Overview (Bento Style) -->
+<div class="grid grid-cols-2 gap-gutter mb-stack-lg">
+<div class="bg-primary-container p-6 rounded-xl flex flex-col justify-between h-32 shadow-sm">
+<span class="material-symbols-outlined text-on-primary-container text-4xl" data-icon="verified_user" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<div>
+<p class="font-label-lg text-label-lg text-on-primary-container opacity-80">Calls Intercepted</p>
+<p class="font-headline-md text-headline-md text-on-primary-container">24</p>
+</div>
+</div>
+<div class="bg-surface-container-highest p-6 rounded-xl flex flex-col justify-between h-32 shadow-sm">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="family_restroom">family_restroom</span>
+<div>
+<p class="font-label-lg text-label-lg text-on-surface-variant">Family Safe</p>
+<p class="font-headline-md text-headline-md text-primary">Active</p>
+</div>
+</div>
+</div>
+<!-- Notification History Section -->
+<section class="mb-stack-lg">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-headline-md text-headline-md text-primary">Intercepted Events</h3>
+<span class="bg-error text-on-error px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">High Threat</span>
+</div>
+<!-- Intercepted Cards -->
+<div class="space-y-stack-sm">
+<!-- Card 1: Digital Arrest -->
+<div class="bg-surface-container-lowest border border-outline-variant p-stack-sm rounded-xl shadow-sm tinted-primary flex gap-4 items-start active:scale-[0.98] transition-transform cursor-pointer">
+<div class="h-14 w-14 rounded-full bg-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-error text-3xl" data-icon="gavel" style="font-variation-settings: 'FILL' 1;">gavel</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<div>
+<p class="font-label-lg text-label-lg text-error">Digital Arrest Scam</p>
+<p class="font-body-md text-body-md font-bold text-on-surface">+91 98765 43210</p>
+</div>
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold">Blocked</span>
+</div>
+<div class="mt-2 flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="calendar_today">calendar_today</span>
+<span class="text-sm font-medium">Today, 10:45 AM</span>
+</div>
+</div>
+</div>
+<!-- Card 2: KYC Update -->
+<div class="bg-surface-container-lowest border border-outline-variant p-stack-sm rounded-xl shadow-sm flex gap-4 items-start active:scale-[0.98] transition-transform cursor-pointer">
+<div class="h-14 w-14 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="account_balance">account_balance</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<div>
+<p class="font-label-lg text-label-lg text-on-surface-variant">KYC Verification Fraud</p>
+<p class="font-body-md text-body-md font-bold text-on-surface">+91 81234 56789</p>
+</div>
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold">Blocked</span>
+</div>
+<div class="mt-2 flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="calendar_today">calendar_today</span>
+<span class="text-sm font-medium">Yesterday, 4:20 PM</span>
+</div>
+</div>
+</div>
+<!-- Card 3: Lottery Scam -->
+<div class="bg-surface-container-lowest border border-outline-variant p-stack-sm rounded-xl shadow-sm flex gap-4 items-start active:scale-[0.98] transition-transform cursor-pointer opacity-80">
+<div class="h-14 w-14 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="featured_seasonal_and_gifts">featured_seasonal_and_gifts</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<div>
+<p class="font-label-lg text-label-lg text-on-surface-variant">Lottery Prize Scam</p>
+<p class="font-body-md text-body-md font-bold text-on-surface">+91 70012 34567</p>
+</div>
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold">Blocked</span>
+</div>
+<div class="mt-2 flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="calendar_today">calendar_today</span>
+<span class="text-sm font-medium">24 Oct, 11:30 AM</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Family Notifications Section -->
+<section class="mb-stack-lg">
+<h3 class="font-headline-md text-headline-md text-primary mb-4">Family Alerts Sent</h3>
+<div class="bg-surface-container-low rounded-2xl p-6">
+<div class="space-y-4">
+<!-- Family Member 1 -->
+<div class="flex items-center justify-between border-b border-outline-variant pb-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A portrait of a young Indian man in professional attire, smiling warmly, studio lighting with a clean neutral background, 8k resolution, high quality photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXoe75ri4VkL7A9o2TpLDkmC2FsWlAqY_Cm1DVT4Y6uIL0xs-ctFjBfZq_Z-r-gpn0oRl2dgtU3TgXR2VkyyjhYlrYcI5KmteKsOFmxNysAKHDVPdVZhic2r-T9CRnFHICtqMVQcUVwIokp2xkEowFueySLX8KXt7X0BtfH3EX9wiNF7nkPaCO8aLdYc0tvCN12Jjn2qHQZCFbFGfzIN52c9s5p9jpaklgmLWFiOxlst-McWnKilSlSQ"/>
+</div>
+<div>
+<p class="font-label-lg text-label-lg text-on-surface">Arjun (Son)</p>
+<p class="text-xs text-secondary font-bold">ALERED SUCCESSFULLY</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Family Member 2 -->
+<div class="flex items-center justify-between border-b border-outline-variant pb-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A portrait of a middle-aged Indian woman with a kind expression, wearing a colorful sari, soft natural lighting in an indoor setting, 8k resolution, professional portraiture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDUbQt-4niSxXSiVbYmDYK2vRu-0dbP6QQP8CzMwc1rwgP2H_yKMjy-cHjzwGMZi7ki9TzZDWRsZVSfsFl1c6dmhv9RQVHp1BAHIQl0qpX0DjL-73MpQ8rxxxTIFVQHv_YDiGbYHpxSpd6u9hxoYN7oh5OHA73pVOUIy1nLVH-IUbelZ6cZE6Lwbn5JW-kpp9Jpo0U4peXdX9JLNtZ93na1wK0rINp6fpxcNqGV8Hg7f-UrB45ZM54Jg"/>
+</div>
+<div>
+<p class="font-label-lg text-label-lg text-on-surface">Priya (Daughter)</p>
+<p class="text-xs text-secondary font-bold">ALERED SUCCESSFULLY</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Family Member 3 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A portrait of a young Indian woman, energetic and smiling, modern hairstyle, bright outdoor lighting with a soft bokeh background, 8k resolution, commercial style photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_9n2HmHpOs_xmQTSsPFAYPScS_duk7SjoQYgjRIIw4RY5NT8P0m4pSESAtOZQQt6o5ZmWr659G8BOE5ueYnmncMOIhsPrrw1P4ExPbu1skIXuIX-vIBcTmKHStyJDtoR0utISsiDTMgtlYlXdhxz2I1gmhjNRk7V0ohJ3b5s-PFTR6b_0RzNVFt4sEdcvLZCSjtKaW2alp2pwFi2XXhlKOS612Ou7HdNiCdnFtMGwRo9bVLiqvbkKBQ"/>
+</div>
+<div>
+<p class="font-label-lg text-label-lg text-on-surface">Meera (Granddaughter)</p>
+<p class="text-xs text-on-surface-variant font-bold">NOTIFIED VIA WHATSAPP</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<button class="w-full mt-6 h-touch-target-min border-2 border-primary text-primary font-bold rounded-xl active:scale-95 transition-transform hover:bg-surface-variant">
+                    Add Emergency Contact
+                </button>
+</div>
+</section>
+<!-- Safety Education Card -->
+<div class="relative overflow-hidden bg-primary-container rounded-2xl p-6 text-on-primary-container mb-stack-lg">
+
+<div class="relative z-10">
+<p class="font-headline-md text-headline-md mb-2">Did You Know?</p>
+<p class="font-body-md text-body-md mb-4">"Digital Arrest" is a common scam where callers pose as police officers over video. Real police never arrest people via WhatsApp.</p>
+<button class="flex items-center gap-2 font-bold underline">
+                    Learn how to stay safe
+                    <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-surface-container-lowest dark:bg-background border-t border-outline-variant shadow-lg flex justify-around items-center h-24 px-4 pb-4 rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-6 py-2" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-lg text-label-lg">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-6 py-2 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="history" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-label-lg text-label-lg">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-6 py-2" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label-lg text-label-lg">Family</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-6 py-2" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span class="font-label-lg text-label-lg">Support</span>
+</a>
+</nav>
+<script>
+        // Simple touch interaction for cards
+        document.querySelectorAll('.cursor-pointer').forEach(card => {
+            card.addEventListener('click', () => {
+                // Potential expansion or detail view logic
+                console.log('Event clicked for details');
+            });
+        });
+
+        // Add a subtle entrance animation for log items
+        const cards = document.querySelectorAll('.space-y-stack-sm > div');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                card.style.transition = 'all 0.4s ease-out';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    </script>
+</body></html>
