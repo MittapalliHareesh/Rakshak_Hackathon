@@ -55,3 +55,11 @@
 
 ## 🛡 Security & Privacy
 Rakshak is designed with privacy-first principles. The on-device Gemma model ensures that sensitive conversation data can be analyzed without ever leaving the phone, providing a fallback layer even without internet access.
+
+<img width="1280" height="714" alt="image" src="https://github.com/user-attachments/assets/4508627e-c53d-4c37-bd6c-69a0170485cd" />
+
+
+
+
+Demo URL:- https://drive.google.com/drive/folders/1VDxlg2rf0zpL7QLpAnyioDLzGCme5fDR
+
