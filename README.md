@@ -55,6 +55,3 @@
 
 ## 🛡 Security & Privacy
 Rakshak is designed with privacy-first principles. The on-device Gemma model ensures that sensitive conversation data can be analyzed without ever leaving the phone, providing a fallback layer even without internet access.
-
-## 🏆 Hackathon Context
-This project was developed for the **Google DeepMind Hackathon** to leverage Google's most advanced AI models (Gemini & Gemma) to solve a critical real-world problem in the Indian digital landscape.
